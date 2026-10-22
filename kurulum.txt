@@ -1,0 +1,28 @@
+LOTOANALIZ AI — ONLINE KONTROLLÜ MOBİL PWA V2
+
+ÖNEMLİ: Otomatik veri kontrolü yalnızca Python sunucusuyla birlikte çalışır.
+Statik hosting ya da index.html dosyasına çift tıklama resmî sonuçları otomatik getiremez.
+
+KURULUM:
+1. Bilgisayar/sunucuda Python 3.10+ kurulu olsun.
+2. Bu klasörde: pip install -r requirements.txt
+3. Ardından: uvicorn server:app --host 0.0.0.0 --port 8000
+4. http://localhost:8000 sayfasını açın.
+5. Android PWA kurulumu için HTTPS alan adıyla yayımlayın.
+
+HER AÇILIŞTA:
+- Tarayıcı sunucunun /api/sync hizmetini kontrol eder.
+- Sunucu sonuç sayfalarını kısıtlı sayıda ve kontrollü inceler.
+- Erişilebilen ve biçimi doğrulanabilen kayıtlar saklanır.
+- Elle girilen kayıtlar silinmez; farklı sayılar varsa uyuşmazlık görünür.
+- Sonuç alınamazsa uygulama çevrimdışı kayıtlarla kullanılmaya devam eder.
+
+SINIRLAMALAR:
+- Sonuç sitesine erişim engeli/CAPTCHA aşılmaz.
+- Tüm tarihsel verileri eksiksiz alma sistemi değildir.
+- Kaynak site HTML yapısı değişirse doğrulama başarısız olabilir.
+- Varsayılan sunucu sınırlı sayıda güncel çekilişi inceler.
+- SQLite veritabanı sunucuda saklanır. Üretimde kalıcı disk kullanın.
+- Manuel kayıtlar telefonda IndexedDB üzerinde saklanır. Düzenli JSON yedeği alın.
+- Resmî siteye erişim bu ortamda ağ DNS kısıtı nedeniyle canlı test edilemedi.
+- Sonuç eşleşse bile kazanma olasılığı artmaz.

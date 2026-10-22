@@ -1,0 +1,14 @@
+services:
+  lotoanaliz:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - loto_data:/app/data
+    environment:
+      LOTO_DB_PATH: /app/data/official_results.sqlite3
+      LOTO_ENABLE_SCHEDULER: "1"
+      LOTO_ADMIN_KEY: ${LOTO_ADMIN_KEY:?Set a long random secret}
+volumes:
+  loto_data:
