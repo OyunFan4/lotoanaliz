@@ -1,0 +1,23 @@
+LOTOANALIZ AI – COLLECTAPI TEST SÜRÜMÜ
+
+1) Önce uygulamadaki Daha Fazla > JSON yedeğini indir ile cihaz kayıtlarınızı yedekleyin.
+2) Bu klasördeki dosyaları GitHub ana depo köküne yükleyin. Var olan dosyalar yenilenir; kullanıcı cihazı IndexedDB verileri silinmez.
+3) Netlify > Site configuration > Environment variables > Add variable:
+   Key: COLLECTAPI_KEY
+   Value: CollectAPI panelinizden YENİ oluşturduğunuz API anahtarı
+   (apikey önekini koymayın.)
+   Değişkenin Functions / All scopes için geçerli olmasını sağlayın.
+4) Yeni deploy başlatın; Published olmasını bekleyin.
+5) Şunları açıp yanıt kontrol edin:
+   https://lotoanaliz.netlify.app/.netlify/functions/sync?game=sayisal
+   https://lotoanaliz.netlify.app/.netlify/functions/sync?game=super
+6) Sonra uygulamada Şimdi sonuçları kontrol et düğmesine basın.
+
+NOTLAR:
+* Önceden sohbet içine yazılmış API anahtarını CollectAPI panelinde iptal edip yenisini oluşturun.
+* API anahtarını GitHub'a, HTML'ye, JS koduna veya bu sohbete koymayın.
+* CollectAPI üçüncü taraf kaynaktır. Kayıtlar third_party_unverified olarak eklenir.
+* Örnek yanıtların 2019 tarihli olması servis güncelliği hakkında garanti vermez.
+* Bu paket API sağlayıcısının gerçekten canlı cevap verdiğini doğrulamadan hazırlanmış test sürümüdür.
+* İstatistikler üçüncü taraf kayıtlarını kapsar; farklı dönem/oyun kuralları için dikkat gereklidir.
+* Mevcut service worker eski dosyayı önbellekten getirirse sayfayı tam yenileyin.

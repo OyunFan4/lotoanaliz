@@ -1,5 +1,5 @@
 'use strict';
-const CACHE='lotoanaliz-mobil-netlify-v10-diagnostic';
+const CACHE='lotoanaliz-mobil-collectapi-v11';
 const FILES=['./','./index.html','./app.js','./style.css','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil((async()=>{await Promise.all((await caches.keys()).filter(k=>k.startsWith('lotoanaliz-')&&k!==CACHE).map(k=>caches.delete(k)));await self.clients.claim()})()));
