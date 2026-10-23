@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {handler,_test} from './netlify/functions/sync.mjs';
+const bad=await handler({queryStringParameters:{game:'wrong'}});
+assert.equal(bad.statusCode,400);
+assert.equal(JSON.parse(bad.body).results.length,0);
+const s={date:'2026-09-22',draw:'114',max:60};
+const html='<div>2026-09-22 "drawNumber":114 "winningNumber": [3,15,43,48,50,52]</div>';
+assert.deepEqual(_test.parseOfficial(html,s),[3,15,43,48,50,52]);
+assert.throws(()=>_test.parseOfficial(html.replace('52','15'),s));
+assert.throws(()=>_test.parseOfficial('{{#each winningNumber}} '+html,s));
+assert.throws(()=>_test.parseOfficial(html.replace('2026-09-22','2026-09-23'),s));
+assert.equal(_test.errClass({name:'AbortError'}),'timeout');
+console.log('6/6 sync tests passed');
