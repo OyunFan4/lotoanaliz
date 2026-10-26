@@ -1,0 +1,2017 @@
+LotoAnaliz AI v13 — Tüm dosyaların tek metin dökümü
+PNG varlıklar Base64 olarak yer alır. Bu döküm doğrudan çalışan uygulama değildir; çalıştırmak için ZIP dosyaları kullanılmalıdır.
+
+========================================================================
+DOSYA: .env.example
+BYTES: 250
+SHA256: 29f70b9c0c12f4566bf334e766172d8d24e1fa9c21fd93cadc73f3542e7199ea
+========================================================================
+# Bunları Netlify > Environment variables kısmına koyun (dosyaya gerçek sırlar eklemeyin)
+COLLECTAPI_KEY=YOUR_NEW_REVOKED_AND_REPLACED_KEY
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_SECRET
+
+
+========================================================================
+DOSYA: KURULUM-OTOMATIK.md
+BYTES: 4708
+SHA256: e6c13e0d175e8bbd031cb5b0329560d9eeb0aad6053027023714f5362e5562ba
+========================================================================
+# LotoAnaliz AI — otomatik veri altyapısı / kontrollü geliştirme
+
+> Mevcut mobil arayüz, PWA, geçmiş cihaz kayıtları ve sekmeler korunmuştur. `sync` yanıtının biçimi eski UI ile uyumludur. Otomatik veri toplama kaynak doğrulanmadan **tamamlandı** olarak beyan edilmez.
+
+## Gerçek durum (26.10.2026)
+
+- **İki oyunun CollectAPI adaptörü:** Çılgın Sayısal Loto ve Süper Loto. Son kullanıcı testlerinde iki uç nokta da HTTP 500 dönmüştü. Bugün canlı yanıt doğrulanmadı; otomatik aktarım garantisi yok.
+- **Şans Topu ve On Numara:** Kural/doğrulama altyapıları hazır; resmî veya izinli çalışan API adresleri doğrulanmadı, bağlanmadılar.
+- **Resmî doğrulama:** CollectAPI üçüncü taraf kaynağıdır. Bu kaynaktan çekilen hiçbir veriyi `official_verified` diye işaretlemeyin.
+- **Geçmiş çekilişler:** İzinli sayfalama/tarih aralığına sahip çalışan veri kaynağı henüz bulunmadığı için otomatik geriye dönük tam aktarım yapılmamıştır.
+- **İşlem:** Netlify'daki zamanlanmış kontrol her dört saatte bir (UTC, saat başından 15 dakika sonra) dört oyun için çalışır. İki oyunda veri kaynağını dener; diğer iki oyun için `not_configured` kaydı tutar. Aynı çekilişi yeniden eklemez.
+- **Güvenlik:** Public sync endpointi sadece sorgulama yapar, kalıcı DB'ye yazmaz; kalıcı kayıt yalnızca arka plan zamanlayıcısından yapılır. Gizli anahtarlar sadece Netlify Functions ortamında tutulur.
+
+## Kurulum
+
+1. Mevcut `lotoanaliz` deposunun bir yedeğini alın ve bu ZIP'in içeriklerini ana dizine ekleyin. `index.html`, `app.js`, `style.css` ana dizinde, `netlify/functions/` aynı konumda olmalıdır. GitHub'a **asla gerçek .env veya API anahtarı** yüklemeyin.
+2. https://supabase.com adresinde bir proje oluşturun. Supabase SQL Editor'da `supabase/001_initial.sql` çalıştırın.
+3. Netlify → Project configuration → Environment variables:
+   - `SUPABASE_URL`: Supabase proje URL'si
+   - `SUPABASE_SERVICE_ROLE_KEY`: Supabase **secret** service_role key (GitHub'a ve tarayıcıya koymayın)
+   - `COLLECTAPI_KEY`: CollectAPI'de **yenilediğiniz** anahtar (geçmişte sohbet içinde paylaşılmış anahtar kullanılmamalı). Başına `apikey ` eklemeyin.
+4. Netlify'da yeniden deploy edin. Production deploy tamamlanınca `/.netlify/functions/health` ve `/.netlify/functions/summary` adreslerini deneyin.
+5. `/.netlify/functions/sync?game=sayisal` ve `?game=super` arayüzle uyumluluğu gösterir; bunlar tarayıcıdan tetiklenen *okuma* kontrolleridir. Kalıcı veritabanını zamanlanmış görev yazar.
+6. `/.netlify/functions/history?game=sayisal` arşivi, `/.netlify/functions/summary` son 20 kontrol günlüğünü gösterir.
+7. Netlify Function loglarında `Scheduled LotoAnaliz check` mesajını arayın. **Netlify'da çalışmadığını görmediğiniz bir işi tamamlandı diye kabul etmeyin.**
+
+## Yedekleme ve geri yükleme
+
+Supabase'de SQL Export veya PostgreSQL `pg_dump` kullanarak düzenli yedek alın. Geri yükleme öncesinde test ortamında `pg_restore` ile kurtarma doğrulaması yapın. Mevcut cihaz kayıtları ayrı bir yerel tarayıcı depolamasındadır; bu paket onları kendiliğinden silmez veya server'a taşımış gibi davranmaz.
+
+## Bilinen sınırlamalar ve sonraki adım
+
+- Kaynak CollectAPI 500 vermeye devam ederse yeni veri gelmeyecektir; geçmiş veriler **korunur**.
+- Kamuya açık API için ilk seviye CDN 5 dakikalık önbellek vardır; yoğun trafik için Netlify rate limit/WAF gibi ek kontrol gerekir.
+- Resmî/izinli veri erişimi, çekiliş numarası ve tarih eşleştirmesi, dört oyunun tüm arşivi, kaynak çelişkilerinin ayrı tabloya alınması ve uçtan uca üretim testleri **henüz tamamlanmadı**.
+- `archive/history` ilk 500 kayıtla sınırlıdır; tam tarihi aktarım ve sayfalama ileride gerçek veri kaynağına bağlanarak geliştirilmeli.
+- PWA cihaz üzerindeki verileri kaldırmak için **tarayıcı verilerini temizlemeyin**.
+- Terminal testi: `node --test tests/core.test.mjs`. Bu testlerde gerçek çekiliş sonucu uydurulmaz.
+
+## v13: durum belgesi ve etiket düzeltmesi
+- `app.js`: üçüncü taraf kayıtları artık kullanıcı verisi olarak yanlış etiketlenmiyor.
+- `tests/integration_contract.test.mjs`: API sözleşmesi ve veri etiketi testleri eklendi.
+- `LOTOANALIZ-TUM-ADIMLAR-DURUM.md`: kullanıcı talimatının tamamı; yalnızca uygulanmış/doğrulanmış kod adımları üstü çizili.
+- `LOTOANALIZ-TUM-DOSYALAR-METIN.txt`: paketteki dosyaların tam metin dökümü ve PNG varlıkların Base64 gösterimi.
+- Canlı dağıtım, API veri akışı, tüm geçmiş arşiv ve veritabanı kurulumu tamamlanmadı.
+
+
+========================================================================
+DOSYA: KURULUM-VE-TEST.md
+BYTES: 1705
+SHA256: a57c72fda659c78ee6f79e253190a320893fe41b95b1693927b6c244a4b57f67
+========================================================================
+# LotoAnaliz AI V9 — Netlify + telefon testi
+
+1. Dosyaları GitHub deposunun **kök dizinine** yükleyin (`index.html` ve `netlify.toml` kökte kalmalı). `netlify/functions/` klasörünü koruyun. GitHub deposu Netlify projenize bağlı olmalı.
+2. Netlify Deploys ekranında son dağıtımın **Published** olduğuna bakın.
+3. `https://lotoanaliz.netlify.app/api/health` adresini açın. JSON içinde `ok: true` beklenir. 404 veya HTML hata sayfası görürseniz Netlify Function yayımlanmamıştır.
+4. `https://lotoanaliz.netlify.app/api/sync?game=super` adresini açın. `results` dolu ve `status: ok` ise veri alınmıştır. `status: unavailable` ise kaynak doğrulanamamış demektir; `errors` nedenini açıklar.
+5. Telefonda sitenin son sürümünü açın, yenileyin. Eski PWA görünüyorsa Android'de tarayıcı sitesini yeniden yükleyin. **Cihaz verilerini silmeyin**; önce Diğer → JSON yedeğini indir.
+6. **Özet**, **Arşiv** veya **Diğer** bölümünde **Şimdi sonuçları kontrol et** butonuna dokunun. İki oyunun ayrı ayrı durumunu görün.
+7. Alınamayan çekiliş için Arşiv → Bir çekilişi elle ekle formunu doldurun. Manuel kayıtlar silinmez.
+
+## Sınırlamalar
+
+Resmî sonuç sayfaları sunucu isteğinde işlenmemiş şablon gönderebilir veya 403/429 döndürebilir; bunlar engellenmez ve sahte sonuç üretilmez. Fonksiyon yalnızca sınırlı güncel çekiliş adaylarını sorgular, bütün geçmişi taramaz. Netlify tarayıcı sürümündeki kayıtlar IndexedDB içinde yalnızca bu cihazda saklanır. Manuel kayıtlar resmî doğrulanmış sayılmaz. Bu paketin canlı Netlify dağıtımı ve sonuç çekme başarısı bu ortamda doğrulanmamıştır.
+
+
+========================================================================
+DOSYA: LOTOANALIZ-TUM-ADIMLAR-DURUM.md
+BYTES: 15437
+SHA256: db12064fd0f7d74bd6fb9e92e5216e1d8062c0d419690a3c849661bb13e069c3
+========================================================================
+# LotoAnaliz — Orijinal Talimat / Uygulama Durumu (26.10.2026)
+
+**İşaretleme kuralı:** `~~üstü çizili~~` = kodda uygulanmış ve/veya yerel testle doğrulanmış adım; canlı altyapı kurulumu gerektiren işler *işaretlenmedi*. Kodu hazırlanmış ancak **canlı çalışması doğrulanmamış** adımları ancak dar kapsamıyla çizdim.
+
+**Önemli:** Nihai kabul kriteri henüz karşılanmıyor. CollectAPI'nin Sayısal ve Süper Loto uç noktaları kullanıcı testinde HTTP 500 vermişti. Şans Topu ve On Numara kaynak adaptörleri yok; Supabase/Netlify güncel dağıtımı bu oturumda doğrulanmadı.
+
+**v13 gerçek değişiklikleri:** Mevcut v12 temel alındı; üçüncü taraf kayıt etiketi düzeltildi, beş ek sözleşme testi eklendi. Tüm mevcut kodlar tek metin belgesine aktarıldı.
+
+---
+
+# LotoAnaliz — Tam Otomatik Sistem Kurulum ve Geliştirme Promptu
+
+Mevcut GitHub deposundaki LotoAnaliz projesini incele ve çalışan yapıyı bozmadan eksik özellikleri tamamlayarak üretime hazır hâle getir.
+
+**ANA HEDEF:** LotoAnaliz, geçmiş ve yeni loto çekiliş sonuçlarını güvenilir kaynaklardan otomatik olarak toplasın, veritabanına kaydetsin, doğrulasın ve istatistikleri otomatik güncellesin. Kullanıcının sonuçları elle girmesi gerekmemeli.
+
+## 1. Mevcut projeyi incele
+
+- GitHub deposundaki tüm dosyaları ve klasörleri analiz et.
+- Kullanılan teknolojileri, mevcut arayüzü, veri modelini, API'leri ve Netlify yapılandırmasını belirle.
+- ~~Çalışan özellikleri ve tasarımı koru.~~  ✅ **Kod/yerel kapsam**
+- Eksik özellikleri tespit et ve uygulama planı oluştur.
+- ~~Projeyi gereksiz yere baştan yazma.~~  ✅ **Kod/yerel kapsam**
+- ~~Değişiklikleri mevcut teknolojiyle uyumlu şekilde uygula.~~  ✅ **Kod/yerel kapsam**
+
+## 2. Loto sonuçlarını otomatik topla
+
+Mevcut projeye uygun olarak aşağıdaki oyunları destekle:
+
+- Çılgın Sayısal Loto
+- Süper Loto
+- Şans Topu
+- On Numara
+
+Her oyun için resmî sonuç kaynağını araştır. Öncelikle resmî API veya erişime izin verilen yapılandırılmış veri kaynağını kullan. Uygun API yoksa kaynak sitesinin kullanım koşullarına uyan sunucu tarafı web scraping çözümü geliştir.
+
+Kurallar:
+
+- Sonuçları otomatik al.
+- Kullanıcıdan sonuçları elle girmesini isteme.
+- Kaynakları, çekiliş numaralarını ve veri formatlarını oyun bazında doğru eşleştir.
+- Sonuçların açıklanma zamanlarını dikkate al.
+- Kaynak siteye aşırı istek gönderme.
+- Kaynak sayfa yapısı değişirse hatayı yakala ve kaydet.
+- ~~Sonuç açıklanmamışsa sahte veri oluşturma.~~  ✅ **Kod/yerel kapsam**
+- ~~Kaynak erişilemezse rastgele sayı üretme veya tahminde bulunma.~~  ✅ **Kod/yerel kapsam**
+- Kaynak URL'sini, veri alınma zamanını ve doğrulama durumunu kaydet.
+
+## 3. Geçmiş çekilişleri otomatik aktar
+
+İlk kurulumda mümkün olan en eski tarihten itibaren erişilebilir geçmiş çekilişleri otomatik olarak topla.
+
+- Verileri küçük partiler hâlinde aktar.
+- Sayfalama veya tarih aralığına göre toplama yöntemini kullan.
+- ~~Kaynakta mevcut olmayan verileri varmış gibi gösterme.~~  ✅ **Kod/yerel kapsam**
+- İşlem yarıda kalırsa kaldığı yerden devam edebilsin.
+- ~~Daha önce aktarılan kayıtları yeniden eklemesin.~~  ✅ **Kod/yerel kapsam**
+- Her oyun için aktarımın tamamlanma durumunu raporlasın.
+- ~~Geçmiş veri aktarımı tamamlanmadan sistemin tamamlandığını iddia etme.~~  ✅ **Kod/yerel kapsam**
+- ~~Kaynak geçmiş sonuçların tamamını sağlamıyorsa sınırlamayı açıkça bildir.~~  ✅ **Kod/yerel kapsam**
+
+Bu işlem ilk kurulumda otomatik başlamalı; kullanıcı sonuçları tek tek girmek zorunda kalmamalı.
+
+## 4. Yeni sonuçları otomatik kontrol et
+
+- ~~Netlify Scheduled Functions veya uygun bir zamanlayıcıyla düzenli kontrol kur.~~  ✅ **Kod/yerel kapsam**
+- Çekiliş takvimine göre uygun kontrol sıklığını belirle.
+- Saat dilimi olarak UTC kullanıldığında Türkiye saatine karşılığını belgele.
+- Yeni sonuçlar yayımlandığında otomatik al ve doğrula.
+- Sonuçlar henüz yayımlanmamışsa bir sonraki kontrolü bekle.
+- ~~Aynı görevin birden fazla çalışması mükerrer kayıt oluşturmamalı.~~  ✅ **Kod/yerel kapsam**
+- Geçici bağlantı hatalarında sınırlı sayıda yeniden deneme yap.
+- Son başarılı kontrol zamanını kaydet.
+- Güncelleme sonrası istatistikleri otomatik yenile.
+- Yeni sonuç bulunmadığında da son kontrol durumunu kaydet.
+
+Netlify fonksiyonlarının çalışma süresi ve dağıtım koşullarını dikkate al. İşlem süre sınırını aşacaksa Background Functions veya uygun harici worker kullan. Zamanlanmış görevlerin yalnızca gerekli koşullarda çalışacağını dikkate al.
+
+## 5. Kalıcı veritabanı oluştur
+
+Sonuçları yalnızca tarayıcı belleğinde veya geçici dosyalarda tutma.
+
+Mevcut veritabanı varsa onu değerlendir. Yoksa Netlify ile uyumlu yönetilen bir PostgreSQL çözümü, örneğin Supabase, kullanmayı değerlendir.
+
+Her çekiliş için uygun alanları sakla:
+
+- ~~Oyun adı~~  ✅ **Kod/yerel kapsam**
+- ~~Çekiliş numarası~~  ✅ **Kod/yerel kapsam**
+- ~~Çekiliş tarihi~~  ✅ **Kod/yerel kapsam**
+- ~~Kazanan sayılar~~  ✅ **Kod/yerel kapsam**
+- ~~Oyuna özgü ek sayılar veya alanlar~~  ✅ **Kod/yerel kapsam**
+- ~~Veri kaynağı~~  ✅ **Kod/yerel kapsam**
+- ~~Verinin alınma zamanı~~  ✅ **Kod/yerel kapsam**
+- ~~Doğrulama durumu~~  ✅ **Kod/yerel kapsam**
+- ~~Oluşturulma ve güncellenme zamanları~~  ✅ **Kod/yerel kapsam**
+
+Gereksinimler:
+
+- ~~Oyun ve çekiliş numarası üzerinden mükerrer kayıtları engelle.~~  ✅ **Kod/yerel kapsam**
+- ~~Veritabanı şeması ve migration dosyaları oluştur.~~  ✅ **Kod/yerel kapsam**
+- ~~Veritabanı bağlantı bilgilerini ortam değişkenlerinden al.~~  ✅ **Kod/yerel kapsam**
+- ~~Gizli anahtarları GitHub'a yükleme.~~  ✅ **Kod/yerel kapsam**
+- ~~Veritabanı hatalarında mevcut geçerli kayıtları silme.~~  ✅ **Kod/yerel kapsam**
+- Aktarım yarıda kalırsa güvenli şekilde devam edebil.
+- Veri yedekleme ve geri yükleme yönergeleri hazırla.
+
+## 6. Otomatik veri doğrulama
+
+Her sonuç veritabanına kaydedilmeden önce kontrol edilsin.
+
+- ~~Sayı adedi ve sayı aralıkları ilgili oyunun resmî kurallarına uygun olmalı.~~  ✅ **Kod/yerel kapsam**
+- Çekiliş numarası ve tarihi doğrulanmalı.
+- ~~Eksik veya bozuk veri otomatik olarak doğrulanmış sonuç sayılmamalı.~~  ✅ **Kod/yerel kapsam**
+- Kaynakta aynı çekiliş için farklı sonuçlar görülürse çelişki kaydedilmeli ve inceleme için işaretlenmeli.
+- ~~Kaynağın erişilememesi veri silinmesine yol açmamalı.~~  ✅ **Kod/yerel kapsam**
+- ~~Kaynak doğrulanamadığında son geçerli sonuçlar korunmalı.~~  ✅ **Kod/yerel kapsam**
+- ~~Veri çekme işlemi başarılı görünse bile sonuç doğrulaması başarısızsa işlem başarısız olarak raporlanmalı.~~  ✅ **Kod/yerel kapsam**
+
+## 7. Elle veri girişini kaldır
+
+**Temel şart: Sonuçların manuel olarak girilmesi sistemin çalışması için hiçbir zaman zorunlu olmamalı.**
+
+- Yeni çekilişleri otomatik topla.
+- Geçmiş çekilişleri otomatik aktar.
+- İstatistikleri otomatik hesapla.
+- Veri tabanını otomatik güncelle.
+- Sonuçları kullanıcıya otomatik göster.
+- Yönetici panelindeki manuel veri ekleme zorunluluğunu kaldır.
+- İsteğe bağlı bir “Şimdi güncelle” düğmesi bulunabilir; bu düğme aynı otomatik veri toplama sürecini çalıştırmalı.
+- Kaynakta veri bulunamazsa kullanıcıdan sonuçları elle girmesini istemek yerine hata ve veri eksikliği durumu göster.
+
+## 8. İstatistikleri otomatik güncelle
+
+Tüm istatistikleri gerçek ve doğrulanmış geçmiş sonuçlardan hesapla.
+
+Özellikler:
+
+- En sık çıkan sayılar
+- En az çıkan sayılar
+- Sayıların çıkma sıklıkları
+- Tek ve çift sayı dağılımı
+- Sayı aralıklarının dağılımı
+- Ardışık sayı analizleri
+- Tarih aralığına göre analiz
+- Oyun türüne göre filtreleme
+- Geçmiş çekilişleri listeleme
+- İstatistik grafikleri
+- Sonuçların güncellik durumu
+- Son otomatik veri çekme zamanı
+
+Yeni sonuçlar kaydedildiğinde ilgili analizler otomatik yenilensin. Veriler eksikse analizlerde bunu belirt. Geçmiş frekansların gelecekteki sonuçları garanti etmediğini açıkça göster.
+
+## 9. Yönetim ve izleme paneli
+
+Mevcut tasarıma uygun bir yönetim paneli oluştur veya var olanı geliştir.
+
+Gösterilecek bilgiler:
+
+- Oyun bazında toplam çekiliş sayısı
+- Son başarılı veri toplama zamanı
+- Son başarısız işlem
+- Kaynak siteye erişim durumu
+- Geçmiş veri aktarımının ilerlemesi
+- Son görevlerin çalışma geçmişi
+- Doğrulanmamış kayıt sayısı
+- Eksik veya bekleyen sonuçlar
+- Hata mesajları
+- Son otomatik güncellemenin durumu
+
+Yönetim işlemlerini kimlik doğrulamasıyla koru. Manuel güncelleme uç noktasını yetkisiz erişime ve aşırı isteğe karşı koru.
+
+## 10. Hata bildirimi ve yedekleme
+
+- Otomatik görevlerin başarılı ve başarısız çalışmasını kaydet.
+- Veri kaynağı uzun süre erişilemezse sistemde belirgin uyarı göster.
+- Tekrarlanan hatalarda uygun bir bildirim mekanizması hazırla.
+- E-posta bildirimi kullanılacaksa gerekli ayarları ortam değişkenleriyle yapılandır; hesap bilgileri yoksa kurulum adımlarını yaz.
+- ~~Veritabanı için yedekleme stratejisi belirle.~~  ✅ **Kod/yerel kapsam**
+- ~~Geri yükleme prosedürü dokümante et.~~  ✅ **Kod/yerel kapsam**
+- ~~Yedekleme yapılmadıysa yapıldı gibi raporlama.~~  ✅ **Kod/yerel kapsam**
+- ~~Hatalar nedeniyle son geçerli sonuçların kaybolmasını önle.~~  ✅ **Kod/yerel kapsam**
+
+## 11. Güvenlik
+
+- ~~Gizli anahtarları ve veritabanı parolalarını istemci tarafına koyma.~~  ✅ **Kod/yerel kapsam**
+- ~~`.env` dosyasını Git'e ekleme.~~  ✅ **Kod/yerel kapsam**
+- ~~`.env.example` oluştur ve yalnızca örnek değişken adları kullan.~~  ✅ **Kod/yerel kapsam**
+- ~~Gerekli ortam değişkenlerini doğrula.~~  ✅ **Kod/yerel kapsam**
+- Parametreli sorgular veya uygun ORM kullan.
+- Yönetim uç noktalarında yetkilendirme ve hız sınırlaması uygula.
+- ~~Loglarda gizli bilgileri saklama.~~  ✅ **Kod/yerel kapsam**
+- Veri kaynağının kullanım koşullarına uy.
+- Herkese açık API uç noktalarını kötüye kullanıma karşı koru.
+
+## 12. Netlify ve GitHub yapılandırması
+
+Mevcut proje yapısına göre:
+
+- ~~`netlify.toml` dosyasını oluştur veya güncelle.~~  ✅ **Kod/yerel kapsam**
+- ~~Gerekli sunucu fonksiyonlarını ekle.~~  ✅ **Kod/yerel kapsam**
+- ~~Zamanlanmış görevleri tanımla.~~  ✅ **Kod/yerel kapsam**
+- ~~Veritabanı migration dosyalarını ekle.~~  ✅ **Kod/yerel kapsam**
+- ~~Ortam değişkenlerini belgele.~~  ✅ **Kod/yerel kapsam**
+- Build ve deploy ayarlarını kontrol et.
+- Netlify fonksiyonlarının gerçekten çalışıp çalışmadığını loglarla doğrula.
+- Gerektiğinde harici worker kullanımını belgele.
+- Dağıtımın başarılı olduğunu yalnızca gerçekten kontrol ettiysen belirt.
+
+GitHub'a erişim ve yazma yetkisi varsa değişiklikleri uygula. Yetki yoksa dosyaları ve uygulanabilir adımları hazırla; push yapıldığını iddia etme.
+
+## 13. Testler
+
+Otomatik testler yaz ve mümkün olanları çalıştır:
+
+- Her oyun için veri ayrıştırma
+- ~~Geçersiz sonuçların reddedilmesi~~  ✅ **Kod/yerel kapsam**
+- Mükerrer kayıtların önlenmesi
+- Geçmiş veri aktarımının devam ettirilebilmesi
+- Veritabanına kaydetme ve okuma
+- Kaynak siteye erişilememe
+- Bozuk veya eksik veri
+- Zamanlanmış fonksiyon
+- İstatistik hesaplamaları
+- Yönetim paneli yetkilendirmesi
+- Yedekleme ve geri yükleme yönergeleri
+
+Test verilerini gerçek sonuçlardan ayır. Gerçek çekiliş sonucu yerine rastgele veri oluşturup başarı göstermeye çalışma.
+
+## 14. README ve kurulum rehberi
+
+Türkçe bir README oluştur ve şu adımları anlat:
+
+1. Projeyi yerel bilgisayarda çalıştırma
+2. GitHub deposunu kullanma
+3. Netlify bağlantısı ve yayınlama
+4. Veritabanı oluşturma
+5. Ortam değişkenlerini tanımlama
+6. Migration çalıştırma
+7. Geçmiş sonuçları otomatik aktarma
+8. Zamanlanmış görevleri etkinleştirme
+9. Logları kontrol etme
+10. Otomatik güncellemeyi test etme
+11. Yedekleme ve geri yükleme
+12. Kaynak site değişirse yapılacaklar
+13. E-posta bildirimi varsa yapılandırma
+14. Sistemin manuel veri girişi olmadan çalıştığını doğrulama
+
+Gerçekten bilinmeyen API anahtarlarını, bağlantıları veya hesap bilgilerini uydurma.
+
+## 15. Uygulama sırası ve teslim raporu
+
+Sadece öneri verme; erişebildiğin projede kod değişikliklerini gerçekten uygula.
+
+İzlenecek sıra:
+
+1. Projeyi analiz et.
+2. Eksikleri listele.
+3. Veri kaynaklarını ve kullanım koşullarını doğrula.
+4. Veritabanı ve otomasyon altyapısını kur.
+5. Geçmiş veri aktarımını hazırla.
+6. Yeni sonuçların otomatik toplanmasını kur.
+7. Veri doğrulama ve mükerrer kayıt kontrolünü uygula.
+8. İstatistikleri otomatik güncelle.
+9. Hata kaydı, yedekleme ve yönetim ekranını ekle.
+10. Testleri çalıştır ve hataları düzelt.
+11. README dosyasını tamamla.
+12. Dağıtım durumunu ve kalan kurulum adımlarını raporla.
+
+İş sonunda Türkçe rapor ver:
+
+- Tamamlanan özellikler
+- Değiştirilen dosyalar
+- Kullanılan veri kaynakları
+- Geçmiş verilerin aktarım durumu
+- Veritabanı ve gerekli ortam değişkenleri
+- Otomatik güncellemenin çalışma düzeni
+- Test sonuçları
+- Yedekleme ve hata bildirimi durumu
+- Netlify yayın durumu
+- Eksik bağlantılar ve tamamlanmamış işler
+- Benim yapmam gereken adımlar
+- Otomatik sistemi nasıl doğrulayacağım
+
+**Nihai kabul kriteri:** Sistem geçmiş ve yeni sonuçları elle veri girişi olmadan otomatik toplamalı, doğrulamalı, kalıcı olarak saklamalı ve istatistikleri yenilemelidir. Bir veri kaynağı veya hesap bağlantısı eksikse bunu açıkça belirtmeli; hiçbir işlemin tamamlandığını doğrulamadan iddia etmemelidir.
+
+---
+
+## Canlı kurulumda kesinlikle tamamlanmamış işler
+- Supabase projesinin oluşturulması, SQL migration çalıştırılması ve gerçek veri kaydetme testi.
+- İzinli ve erişilebilir dört oyun kaynağından gerçek sonuç alınması.
+- En eski çekilişten itibaren geçmiş kayıtların aktarılması ve devam ettirilmesi.
+- Netlify zamanlanmış fonksiyonunun production ortamda çalışmasının kanıtlanması.
+- Oyunların hepsinin arayüzde eksiksiz desteklenmesi ve otomatik istatistik yenilemesi.
+- Yetkilendirilmiş yönetim paneli, alarm entegrasyonu ve üretim gözlemlenebilirliği.
+- Uçtan uca tarayıcı, sunucu ve canlı bildirim testi.
+
+## Kullanıcının yapması gerekenler
+1. GitHub deposunun yedeğini alın.
+2. Yeni ZIP içindeki dosyaları ana dizine yükleyin, Netlify dağıtımını doğrulayın.
+3. Supabase projesini oluşturup `supabase/001_initial.sql` çalıştırın.
+4. Netlify ortam değişkenlerine gerçek `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` ve güvenli biçimde yenilenmiş `COLLECTAPI_KEY` ekleyin.
+5. Canlı `/api/health`, `/api/sync?game=sayisal`, `/api/sync?game=super`, `/.netlify/functions/history?game=sayisal` ve Scheduled Function loglarını doğrulayın.
+6. Veri kaynakları hizmet vermiyorsa geçmiş aktarım ve 4 oyun için otomasyon tamamlanmış sayılmaz.
+
+
+========================================================================
+DOSYA: NETLIFY_GUNCELLEME_V10.md
+BYTES: 2284
+SHA256: 5db56db0cb7ff1f65f4ed1a61fddd837f5c6cf14870cba1486a11fb9897b5a17
+========================================================================
+# LotoAnaliz AI — Netlify V10 bağlantı düzeltmesi
+
+## Dosyaların amacı
+- `netlify/functions/sync.mjs`: Resmî iki örnek çekiliş sayfasına kontrollü bağlantı, HTTP / timeout / veri doğrulama aşamalarının ayrı raporlanması. Legacy named `handler` export; Netlify sağlık fonksiyonuyla aynı imza.
+- `app.js`: Oyunları birbirinden bağımsız ve eşzamanlı kontrol etme; 14 saniyelik istemci zaman aşımı; işlem durumunu gösterme.
+- `service-worker.js`: Yeni cache anahtarıyla PWA dosyalarının yenilenmesi.
+- `test_sync.mjs`: Sahte HTML kullanarak veri doğrulama testleri.
+
+## GitHub'a güncelleme
+1. Önce telefondaki uygulamada varsa **Diğer → Yedek Al** ile mevcut verilerinizi kaydedin.
+2. ZIP içeriğini GitHub `OyunFan4/lotoanaliz` deposunun **kök dizinine** yükleyin. `netlify/functions/sync.mjs` klasör yolu korunmalıdır. ZIP'i tek dosya olarak göndermek işlevsel deploy sağlamaz.
+3. `main` dalında Commit changes yapın.
+4. Netlify Deploys bölümündeki yeni yayın `Published` olduğunda, önce `/.netlify/functions/health`, sonra `/.netlify/functions/sync?game=super` ve `...game=sayisal` adreslerini ayrı ayrı deneyin.
+5. Telefonda PWA'yı tamamen kapatıp tekrar açın; gerekirse Chrome'da normal tarayıcı sekmesinden güncel sürüme erişin. **Uygulama verilerini temizlemeyin**, IndexedDB'de saklanırlar.
+
+## Nasıl yorumlanır?
+- `status: ok`: yalnızca belirtilen örnek çekiliş gerçekten doğrulanmış ve `results` dolu.
+- `status: unavailable`, `stage: timeout`: Netlify çalışıyor; resmî siteden 7,5 saniyede yanıt alınamadı.
+- `stage: source_http`: Resmî sunucu HTTP hatası yanıtladı.
+- `stage: verification`: Sayfa alındı fakat altı sayı/tarih/çekiliş numarası güvenle ayrıştırılamadı.
+- Bu sürüm sadece **iki örnek çekilişi** sorgular. Tüm tarihsel arşivi toplamaz.
+
+## Gerçek veri erişimi sınırı
+Bu ortamdan Millî Piyango alan adına doğrudan erişim DNS hatası veriyor. Netlify'daki sizin önceki canlı testiniz ise timeout döndürdü. Bu sebeple canlı veri aktarımı başarılı diye işaretlenmedi. Kaynak izinli bir API veya erişilebilir resmî export sunana kadar CSV/JSON girişini kullanın. 403/CAPTCHA veya erişim kısıtlarını aşma yoluna gidilmez.
+
+
+========================================================================
+DOSYA: NETLIFY_KURULUM.md
+BYTES: 2016
+SHA256: 07fb8544d36946b8c048c6909c46a7fde5e9198f9b0feb507ccc50df38c5a090
+========================================================================
+# Netlify + GitHub kurulumu
+
+Bu sürüm mevcut HTML/CSS ekranını korur. Eklenen `netlify.toml`, `/api/sync` ve `/api/health` yollarını Netlify Functions'a yönlendirir.
+
+1. Depodaki mevcut dosyaları yedekleyin. ZIP içindeki dosyaları GitHub deponuza aktarın. `netlify/functions` klasör yapısını koruyun.
+2. Netlify → mevcut **lotoanaliz** projesi → Project configuration → Build & deploy → Repository bağlantısının bu GitHub deposuna işaret ettiğini doğrulayın.
+3. Deploy ayarlarında **publish directory** proje kökü (`.`), **functions directory** `netlify/functions` olmalı. `netlify.toml` bunları tanımlar. Yeni commit sonrası Deploys ekranında yayımlamayı kontrol edin.
+4. Önce `https://lotoanaliz.netlify.app/api/health` adresini açın. JSON ve `ok:true` beklenir. 404/HTML gelirse fonksiyon yüklenmemiştir.
+5. Sonra `/api/sync?game=super` ve `/api/sync?game=sayisal` adreslerini açın. `status:unavailable` ve açıklama çıkarsa servis çalışıyor ama resmî sonuç ayrıştırılamamıştır. Yalnız `status:ok` ve `results` içindeki doğrulanmış kayıtlar analize eklenir.
+6. Telefonda kurulu eski uygulamayı açın. Gerekiyorsa sayfayı yenileyin. Yeni uygulamayı kurmadan önce **Diğer → JSON yedeğini indir** ile cihaz kayıtlarınızı yedekleyin.
+
+## Önemli teknik sınırlamalar
+- Milli Piyango resmî sayfaları bazı erişimlerde sayıları değil `{{#each winningNumber}}` şeklindeki şablonları gösteriyor. Bu halde veri alınamaz. 403/429 engelleri aşılmaz.
+- Bu Netlify Function sadece sınırlı sayıda güncel çekilişi dener. Tüm geçmiş arşivi toplamaz, kalıcı sunucu veritabanı değildir. Doğrulanan sonuçlar PWA'da cihazın IndexedDB alanına kaydedilir.
+- Python `server.py` Netlify üzerinde çalışmaz. Gelişmiş `/api/backtests/run` gibi Python API yolları ayrıca backend olmadan kullanılamaz.
+- Herhangi bir sonuç taraması çalışmadan önce resmî sitenin veri kullanım koşulları kontrol edilmelidir.
+
+
+========================================================================
+DOSYA: YEREL-TEST-SONUCLARI.txt
+BYTES: 1641
+SHA256: 7085fddea07861238bf5c10cf6eb5021023ab3871b364780e221ff6cbb0e2192
+========================================================================
+TAP version 13
+# Subtest: Sayısal Loto örneği resmî doğrulanmış sayılmaz
+ok 1 - Sayısal Loto örneği resmî doğrulanmış sayılmaz
+  ---
+  duration_ms: 1.670376
+  type: 'test'
+  ...
+# Subtest: aynı sayı reddedilir
+ok 2 - aynı sayı reddedilir
+  ---
+  duration_ms: 0.436317
+  type: 'test'
+  ...
+# Subtest: Şans Topu ekstra sayısı zorunlu
+ok 3 - Şans Topu ekstra sayısı zorunlu
+  ---
+  duration_ms: 1.116311
+  type: 'test'
+  ...
+# Subtest: On Numara 22 farklı sayı
+ok 4 - On Numara 22 farklı sayı
+  ---
+  duration_ms: 0.156045
+  type: 'test'
+  ...
+# Subtest: Şans Topu ve On Numara: uydurma API bağlantısı kurulmaz
+ok 5 - Şans Topu ve On Numara: uydurma API bağlantısı kurulmaz
+  ---
+  duration_ms: 0.248805
+  type: 'test'
+  ...
+# Subtest: Üçüncü taraf etiketi resmî veya kullanıcı verisi değildir
+ok 6 - Üçüncü taraf etiketi resmî veya kullanıcı verisi değildir
+  ---
+  duration_ms: 0.859965
+  type: 'test'
+  ...
+# Subtest: Bilinmeyen oyun API katmanında reddedilir
+ok 7 - Bilinmeyen oyun API katmanında reddedilir
+  ---
+  duration_ms: 1.339678
+  type: 'test'
+  ...
+# Subtest: Arşiv bilinmeyen oyunu reddeder
+ok 8 - Arşiv bilinmeyen oyunu reddeder
+  ---
+  duration_ms: 0.184788
+  type: 'test'
+  ...
+# Subtest: Geçersiz takvim tarihi reddedilir
+ok 9 - Geçersiz takvim tarihi reddedilir
+  ---
+  duration_ms: 0.694265
+  type: 'test'
+  ...
+# Subtest: On Numara eksik numaralar reddedilir
+ok 10 - On Numara eksik numaralar reddedilir
+  ---
+  duration_ms: 0.250788
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 64.971792
+
+
+
+========================================================================
+DOSYA: analysis_engine.py
+BYTES: 6749
+SHA256: 69d66587c4b30d4f286d4062451168d31a317b27b716008f2e10a25487fbc50c
+========================================================================
+"""Deterministic, non-predictive statistics and leakage-free chronological evaluation."""
+from collections import Counter
+from itertools import combinations
+from math import comb
+import random
+
+MAXIMUM = {'sayisal': 90, 'super': 60}
+
+def validate(game, numbers):
+    if game not in MAXIMUM: raise ValueError('Geçersiz oyun')
+    if len(numbers)!=6 or any(type(x) is not int or not 1<=x<=MAXIMUM[game] for x in numbers) or len(set(numbers))!=6:
+        raise ValueError('Altı farklı ve kurala uygun tam sayı gerekli')
+    return sorted(numbers)
+
+def frequency(game, draws):
+    m=MAXIMUM[game]; hits=Counter(n for d in draws for n in d['numbers']); total=len(draws)
+    last={n:None for n in range(1,m+1)}; gaps={n:total for n in range(1,m+1)}
+    for i,d in enumerate(draws):
+        for n in d['numbers']:last[n]=d['date'];gaps[n]=total-1-i
+    return [{'number':n,'hits':hits[n],'rate':hits[n]/total if total else 0,
+             'expected_rate':6/m,'last_seen':last[n],'draws_since':gaps[n],
+             **{f'last_{period}':sum(n in d['numbers'] for d in draws[-period:]) for period in (10,25,50,100,250)}} for n in range(1,m+1)]
+
+def distribution(game, draws, low_boundary=None):
+    mid=low_boundary or MAXIMUM[game]//2
+    odds=Counter(); lows=Counter(); sums=Counter(); consecutive=0
+    for d in draws:
+        a=d['numbers'];odds[sum(n%2 for n in a)]+=1;lows[sum(n<=mid for n in a)]+=1
+        sums[sum(a)]+=1;consecutive+=int(any(b-a==1 for a,b in zip(a,a[1:])))
+    return {'sample_size':len(draws),'low_boundary':mid,'odd_counts':dict(odds), 'low_counts':dict(lows),
+            'sum_counts':dict(sums),'draws_with_consecutive':consecutive}
+
+def cooccurrence(draws, size=2, limit=30):
+    if size not in (2,3):raise ValueError('Yalnızca ikili ve üçlü')
+    c=Counter(combo for d in draws for combo in combinations(d['numbers'],size))
+    return [{'numbers':list(k),'hits':v} for k,v in sorted(c.items(), key=lambda x:(-x[1],x[0]))[:limit]]
+
+def generated(game, strategy, training, rng):
+    m=MAXIMUM[game]; weights=[1]*m
+    if strategy in ('hot','recent','hybrid','pairs'):
+        used=training[-25:] if strategy=='recent' else training
+        for d in used:
+            for n in d['numbers']:weights[n-1]+=1
+        if strategy=='hybrid':
+            for d in training[-25:]:
+                for n in d['numbers']:weights[n-1]+=2
+    for _ in range(500):
+        available=list(range(1,m+1)); result=[]
+        for __ in range(6):
+            values=[weights[n-1] for n in available]; chosen=rng.choices(available,weights=values,k=1)[0]
+            result.append(chosen);available.remove(chosen)
+        result.sort();odd=sum(x%2 for x in result);low=sum(x<=m//2 for x in result)
+        if strategy=='odd' and odd!=3:continue
+        if strategy=='low' and low!=3:continue
+        if strategy=='hybrid' and (not 2<=odd<=4 or not 2<=low<=4):continue
+        if strategy=='sum' and len(training)>=10:
+            totals=sorted(sum(d['numbers']) for d in training)
+            if not totals[len(totals)//10]<=sum(result)<=totals[-len(totals)//10-1]:continue
+        return result
+    return sorted(rng.sample(range(1,m+1),6))
+
+def backtest(game, draws, strategy='random', count=1, warmup=25, seed=42):
+    if strategy not in ('random','hot','recent','odd','low','sum','pairs','hybrid'):raise ValueError('Strateji geçersiz')
+    if not 1<=count<=100 or warmup<1:raise ValueError('Parametreler geçersiz')
+    history=sorted(draws,key=lambda d:(d['date'],d.get('draw_number',0)))
+    if len(history)<=warmup:return {'status':'insufficient_data','sample_size':0,'required':warmup+1}
+    rng=random.Random(seed);baseline=random.Random(seed+1);results=[];baseline_results=[]
+    for i in range(warmup,len(history)):
+        previous=[d for d in history[:i] if d['date']<history[i]['date']]
+        if len(previous)<warmup:continue
+        target=set(history[i]['numbers'])
+        predicted=[generated(game,strategy,previous,rng) for _ in range(count)]
+        randoms=[generated(game,'random',previous,baseline) for _ in range(count)]
+        results.extend(len(target.intersection(p)) for p in predicted)
+        baseline_results.extend(len(target.intersection(p)) for p in randoms)
+    if not results:return {'status':'insufficient_data','sample_size':0}
+    return {'status':'ok','sample_size':len(results),'tested_draws':len(results)//count,
+            'match_distribution':{str(i):results.count(i) for i in range(7)},
+            'baseline_distribution':{str(i):baseline_results.count(i) for i in range(7)},
+            'mean_matches':sum(results)/len(results),'baseline_mean_matches':sum(baseline_results)/len(baseline_results),
+            'seed':seed,'strategy':strategy,'columns_per_draw':count,
+            'note':'Geçmiş performans gelecekte kazanma olasılığını kanıtlamaz.'}
+
+
+def significance(game, draws, simulations=1500, seed=42):
+    """Monte Carlo null comparison of marginal frequencies; no predictive claims."""
+    from math import sqrt
+    if game not in MAXIMUM: raise ValueError('Geçersiz oyun')
+    if not 200 <= simulations <= 10000: raise ValueError('Geçersiz simülasyon sayısı')
+    m=MAXIMUM[game]; n=len(draws)
+    if n<20:return {'status':'insufficient_data','sample_size':n,'minimum':20}
+    freq=Counter(x for d in draws for x in validate(game,d['numbers']))
+    expected=n*6/m
+    obs=sum((freq[k]-expected)**2/expected for k in range(1,m+1))
+    rng=random.Random(seed);exceed=0; stats=[]
+    for _ in range(simulations):
+        c=Counter(v for __ in range(n) for v in rng.sample(range(1,m+1),6))
+        z=sum((c[k]-expected)**2/expected for k in range(1,m+1))
+        stats.append(z);exceed+=(z>=obs)
+    p=(exceed+1)/(simulations+1)
+    return {'status':'ok','sample_size':n,'test':'monte_carlo_frequency_deviation',
+        'observed_statistic':round(obs,5),'simulations':simulations,'seed':seed,
+        'p_value':p,'expected_per_number':expected,'effect_size':round(sqrt(obs/(n*6)),5),
+        'note':'Çoklu karşılaştırma ve seçilim yanlılığına dikkat edin. Bu test sonraki çekilişi öngörmez.'}
+
+def draw_details(game, draws):
+    """Aggregated descriptive metrics for verified draws."""
+    m=MAXIMUM[game]
+    if not draws:return {'sample_size':0,'ranges':{},'gaps':{},'min_numbers':{},'max_numbers':{}}
+    gaps=Counter();minimum=Counter();maximum=Counter();ranges=Counter()
+    for d in draws:
+        ns=validate(game,d['numbers']);minimum[ns[0]]+=1;maximum[ns[-1]]+=1
+        for a,b in zip(ns,ns[1:]):gaps[b-a]+=1
+        ranges[len({(x-1)//10 for x in ns})]+=1
+    return {'sample_size':len(draws),'number_limit':m,'gaps':dict(gaps),
+            'min_numbers':dict(minimum),'max_numbers':dict(maximum),
+            'tens_bands_covered':dict(ranges)}
+
+
+========================================================================
+DOSYA: app.js
+BYTES: 32425
+SHA256: ed07e5008ae5174b0c4652a034a2b420d52e7eb99fcb664c1277237d57af5917
+========================================================================
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const RULES={sayisal:{name:'Çılgın Sayısal Loto',max:90,code:'sayisal'},super:{name:'Süper Loto',max:60,code:'super'}};
+const STRATEGIES={random:'Tamamen rastgele',hot:'Tüm geçmiş frekansı',recent:'Yakın dönem frekansı',odd:'Dengeli tek / çift',low:'Dengeli düşük / yüksek',sum:'Tarihsel sayı toplamı',pairs:'Birlikte görülme',hybrid:'Hibrit'};
+const DEFAULT={draws:[],predictions:[],game:'sayisal',theme:'dark',sourceLog:[],syncInfo:{},conflicts:[],version:3};let state={...DEFAULT},page='home',db=null,mode='indexeddb',genResults=[];
+const key='lotoanaliz-ai-offline-v1';function clone(a){return JSON.parse(JSON.stringify(a))}function now(){return new Date().toISOString()}function formatDate(s){return new Date(s+'T12:00:00').toLocaleDateString('tr-TR')}function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function toast(t){const el=$('#toast');el.textContent=t;el.style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.style.display='none',4000)}
+function openDB(){return new Promise((resolve,reject)=>{if(!window.indexedDB)return reject(Error('IndexedDB desteklenmiyor'));const q=indexedDB.open('lotoanaliz-offline',1);q.onupgradeneeded=()=>q.result.createObjectStore('storage');q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
+async function load(){try{db=await openDB();const saved=await new Promise((resolve,reject)=>{const q=db.transaction('storage').objectStore('storage').get('state');q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)});if(saved)state={...clone(DEFAULT),...saved}}catch(e){mode='localstorage';try{state={...clone(DEFAULT),...JSON.parse(localStorage.getItem(key)||'{}')}}catch{}toast('IndexedDB kullanılamadı; yerel depolama deneniyor.')}document.body.classList.toggle('light',state.theme==='light');render();setTimeout(()=>{syncBoth(false)},300)}
+async function persist(){try{if(mode==='indexeddb')await new Promise((resolve,reject)=>{const tx=db.transaction('storage','readwrite');tx.objectStore('storage').put(state,'state');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});else localStorage.setItem(key,JSON.stringify(state))}catch(e){toast('Kayıt hatası: '+e.message);throw e}}
+function rules(){return RULES[state.game]}function draws(){return state.draws.filter(x=>x.game===state.game).sort((a,b)=>a.date.localeCompare(b.date)||String(a.id).localeCompare(String(b.id)))}function verified(){return draws().filter(x=>x.status==='official_verified')}function eligible(){return draws().filter(x=>x.status==='official_verified'||x.status==='third_party_unverified')}function newest(){return eligible().at(-1)}function balls(nums){return `<div class="balls">${nums.map((n,i)=>`<span class="ball ${i%2?'alt':''}">${n}</span>`).join('')}</div>`}function selectGame(){return `<label class="field">Oyun<select id="gameSelector"><option value="sayisal" ${state.game==='sayisal'?'selected':''}>Çılgın Sayısal Loto · 6/90</option><option value="super" ${state.game==='super'?'selected':''}>Süper Loto · 6/60</option></select></label>`}function title(t,d){return `<h1>${t}</h1><p class="lead">${d}</p>`}function dataNotice(){return `<div class="warn">${verified().length?'Resmî doğrulanmış kayıtlarla üçüncü taraf kayıtlar farklı etiketlenir. Kullanıcı yüklemeleri ayrıca gösterilir.':'Henüz uygulama tarafından doğrulanmış resmî çekiliş verisi bulunmuyor.'} İstatistikler kaydedilmiş verilerle üçüncü taraf doğrulanmamış kayıtları da içerebilir; farklı dönemlerin oyun kuralları kıyaslanmamalıdır; hiçbir yöntem kazanma şansını artırmaz.</div>`}
+function syncPanel(){const entries=['sayisal','super'].map(g=>{const d=state.syncInfo?.[g];return `<div class="mini" style="margin:8px 0"><b>${g==='sayisal'?'Çılgın Sayısal Loto':'Süper Loto'}:</b> ${esc(d?.message||'Henüz kontrol edilmedi')}<br><span class="muted">Son deneme: ${esc(d?.checkedAt?new Date(d.checkedAt).toLocaleString('tr-TR'):'—')} · Yeni kayıt: ${Number(d?.added||0)}</span></div>`}).join('');return `<section class="card" id="result-sync-card"><div class="section-head"><h2>Otomatik sonuç kontrolü</h2><span class="tag">İnternet</span></div>${entries}<button class="btn full" id="syncAllNow">↻ Şimdi sonuçları kontrol et</button><p class="mini muted">İki oyun kontrol edilir. API yanıt vermezse kayıtlar silinmez; sonuçları Arşiv → Bir çekilişi elle ekle bölümünden girebilirsiniz.</p></section>`}
+function home(){const ds=draws(),last=newest();return title('Genel Bakış','Çekiliş verilerini, analizleri ve kombinasyonlarınızı tek yerde yönetin.')+`<div class="card hero"><div class="row"><div><small style="color:#e1e5ff">AKTİF OYUN</small><h2 style="font-size:22px;margin:5px 0">${rules().name}</h2><span class="muted">6 sayı · 1–${rules().max}</span></div><span style="font-size:46px">✦</span></div></div>${selectGame()}<div class="grid"><div class="card"><div class="kpi">${ds.length}</div><div class="kpi-label">Arşiv kaydı</div></div><div class="card"><div class="kpi">${verified().length}</div><div class="kpi-label">Resmî doğrulanmış</div></div><div class="card"><div class="kpi">${state.predictions.filter(x=>x.game===state.game).length}</div><div class="kpi-label">Kayıtlı kolon</div></div><div class="card"><div class="kpi">${last?formatDate(last.date):'—'}</div><div class="kpi-label">Son kayıt tarihi</div></div></div>${dataNotice()}${syncPanel()}<section class="card"><div class="section-head"><h2>Son kayıt</h2><span class="tag">${last?esc(last.status):'Veri yok'}</span></div>${last?`<div class="mini muted">${formatDate(last.date)} · ${esc(last.drawNumber||'Çekiliş no yok')}</div>${balls(last.numbers)}`:'<div class="empty"><span class="emoji">▤</span>Henüz çekiliş verisi yok. Otomatik kaynak bağlantısı kontrol edilmelidir.</div>'}<div class="actions"><button class="btn" data-go="archive">Arşive git</button><button class="btn secondary" data-go="generate">Kolon oluştur</button></div></section><div class="card"><h2>Veri ilkesi</h2><p class="mini muted">Bu sürüm açılışta CollectAPI üçüncü taraf sonuç servisini kontrol eder. Erişim mümkün değilse elle eklediğiniz kayıtlar korunur. CSV ile girilen kayıtlar <b>kullanıcı içe aktarımı</b> olarak saklanır. CollectAPI kayıtları da resmî olarak doğrulanmış sayılmaz.</p></div>`}
+function archive(){const ds=draws().slice().reverse();return title('Çekiliş Arşivi','İçe aktarılan kayıtları arayın ve inceleyin.')+selectGame()+syncPanel()+`<div class="card"><div class="row"><h2>Arşiv · ${ds.length} kayıt</h2><button class="btn secondary" id="exportCsv">CSV indir</button></div><label class="field">Tarih veya çekiliş numarası<input id="searchDraw" placeholder="Örnek: 2026-10 veya 123"></label><div id="drawList">${drawItems(ds.slice(0,40))}</div><div class="muted mini">En fazla ilk 40 sonuç görüntülenir. Arama yaparak daraltabilirsiniz.</div></div><div class="card"><h2>Veri ekle</h2><p class="muted mini">CSV sütunları: <span class="mono">game,date,draw_number,n1,n2,n3,n4,n5,n6</span>. Tarih YYYY-MM-DD; oyun: sayisal veya super. İsterseniz ilk satır başlığını kullanın.</p><label class="field">CSV veya JSON dosyası<input type="file" id="importFile" accept=".csv,.json,text/csv,application/json"></label><button class="btn full" id="importBtn">Dosyayı içe aktar</button><div class="rule"></div><details open><summary>Bir çekilişi elle ekle</summary><form id="addDrawForm"><label class="field">Çekiliş tarihi<input type="date" name="date" required></label><label class="field">Çekiliş numarası (isteğe bağlı)<input name="drawNumber" placeholder="Örnek: 123"></label><label class="field">6 sayı (virgülle ayrılmış)<input name="numbers" placeholder="4, 12, 26, 38, 45, 59" required></label><button class="btn full" type="submit">Cihaza kaydet</button></form></details></div>`}
+function drawItems(ds){return ds.length?ds.map(d=>`<div class="record"><div class="record-head"><b>${formatDate(d.date)}</b><span class="tag">${d.status==='official_verified'?'Resmî doğrulanmış':d.status==='third_party_unverified'?'Üçüncü taraf · doğrulanmamış':'Kullanıcı verisi'}</span></div><div class="mini muted">${esc(d.drawNumber||'Çekiliş numarası yok')} · ${esc(RULES[d.game].name)}</div>${balls(d.numbers)}${d.conflict?'<div class="warn">⚠ Resmî kayıtla uyuşmazlık: manuel kayıt korundu.</div>':''}</div>`).join(''):'<div class="empty">Eşleşen çekiliş kaydı yok.</div>'}
+function frequency(ds,max){let a=Array(max).fill(0);for(const d of ds)for(const n of d.numbers)a[n-1]++;return a}function calcStats(ds){let odds={},lows={},sums=[],sequences=0;for(const d of ds){const o=d.numbers.filter(n=>n%2).length;odds[o]=(odds[o]||0)+1;const low=d.numbers.filter(n=>n<=rules().max/2).length;lows[low]=(lows[low]||0)+1;sums.push(d.numbers.reduce((a,b)=>a+b,0));if(d.numbers.some((n,i)=>i>0&&n-d.numbers[i-1]===1))sequences++}return {odds,lows,sums,avg:sums.length?(sums.reduce((a,b)=>a+b,0)/sums.length).toFixed(1):'—',sequences}}
+function stats(){let ds=eligible();let f=frequency(ds,rules().max);let sorted=f.map((n,i)=>[i+1,n]).sort((a,b)=>b[1]-a[1]||a[0]-b[0]);let s=calcStats(ds);return title('İstatistik Merkezi','Verilerinizin frekans ve sayı dağılımlarını inceleyin.')+selectGame()+dataNotice()+`<div class="card"><div class="row"><h2>Analiz dönemi</h2><span class="tag">${ds.length} kayıt</span></div><label class="field">Son kaç çekiliş?<select id="period"><option value="all">Tüm geçmiş</option><option value="10">Son 10</option><option value="25">Son 25</option><option value="50">Son 50</option><option value="100">Son 100</option><option value="250">Son 250</option></select></label><div id="statsContent">${statsHTML(ds)}</div></div>`}
+function statsHTML(ds){if(!ds.length)return '<div class="empty"><span class="emoji">▥</span>Analiz için önce veri ekleyin.</div>';const f=frequency(ds,rules().max),sorted=f.map((n,i)=>[i+1,n]).sort((a,b)=>b[1]-a[1]||a[0]-b[0]),s=calcStats(ds);let top=sorted.slice(0,12),max=top[0][1];return `<div class="grid"><div class="muted-box">Çekiliş<br><b class="stat-number">${ds.length}</b></div><div class="muted-box">Ortalama toplam<br><b class="stat-number">${s.avg}</b></div></div><h3 style="margin-top:20px">En sık çıkan 12 sayı</h3>${top.map(([n,c])=>`<div class="barrow"><span class="n">${n}</span><span class="track"><span class="fill" style="display:block;width:${max?100*c/max:0}%"></span></span><span class="count">${c}</span></div>`).join('')}<div class="rule"></div><details><summary>Bütün sayıları karşılaştır (1–${rules().max})</summary><p class="mini muted">Beklenen oran: ${(100*6/rules().max).toFixed(2)}%. Yalnızca mevcut veri kümesi.</p><div style="max-height:380px;overflow:auto">${f.map((count,i)=>`<div class="barrow"><span class="n">${i+1}</span><span class="track"><span class="fill" style="display:block;width:${100*count/Math.max(1,ds.length)}%"></span></span><span class="count">${count}</span></div>`).join('')}</div></details><details><summary>En sık birlikte görülen ikili ve üçlüler</summary>${[2,3].map(size=>{let pairs=new Map();for(const d of ds){for(let i=0;i<6;i++)for(let k=i+1;k<6;k++){if(size===2){let key=[d.numbers[i],d.numbers[k]].join('–');pairs.set(key,(pairs.get(key)||0)+1)}else for(let h=k+1;h<6;h++){let key=[d.numbers[i],d.numbers[k],d.numbers[h]].join('–');pairs.set(key,(pairs.get(key)||0)+1)}}}return `<h3>${size===2?'İkili':'Üçlü'}</h3><p class="mini">${[...pairs].sort((a,b)=>b[1]-a[1]).slice(0,15).map(([key,n])=>`${key} (${n})`).join(', ')||'Veri yok'}</p>`}).join('')}</details><div class="rule"></div><h3>Tek sayılar / çekiliş</h3>${Object.keys(s.odds).sort((a,b)=>a-b).map(k=>`<div class="barrow"><span class="n">${k}</span><span class="track"><span class="fill" style="display:block;width:${100*s.odds[k]/ds.length}%"></span></span><span class="count">${s.odds[k]}</span></div>`).join('')}<div class="rule"></div><div class="mini muted">En az görülen sayılar: ${sorted.slice(-10).map(x=>`${x[0]} (${x[1]})`).join(', ')}<br>Ardışık sayı içeren çekilişler: ${s.sequences}/${ds.length}</div>`}
+function sampleWeighted(weights,ran=Math.random){let total=weights.reduce((a,b)=>a+b,0);if(total<=0)return Math.floor(ran()*weights.length)+1;let r=ran()*total;for(let i=0;i<weights.length;i++){r-=weights[i];if(r<0)return i+1}return weights.length}
+function generateOne(ds,strategy,ran=Math.random){const max=rules().max;let numbers=[],recent=ds.slice(-25),freq=frequency(ds,max),rFreq=frequency(recent,max),weight=freq.map(c=>c+1),reference=ds.length?calcStats(ds):null;const choose=()=>{const weights=Array(max).fill(1).map((_,i)=>numbers.includes(i+1)?0:(strategy==='hot'?weight[i]:strategy==='recent'?rFreq[i]+1:strategy==='hybrid'?weight[i]+rFreq[i]*2:strategy==='pairs'?weight[i]+rFreq[i]+1:1));return sampleWeighted(weights,ran)};for(let trial=0;trial<1500;trial++){numbers=[];for(let j=0;j<6;j++){let n=choose();if(numbers.includes(n)){j--;continue}numbers.push(n)}numbers.sort((a,b)=>a-b);let odd=numbers.filter(x=>x%2).length,low=numbers.filter(x=>x<=max/2).length,sum=numbers.reduce((a,b)=>a+b,0);if(strategy==='odd'&&odd!==3)continue;if(strategy==='low'&&low!==3)continue;if(strategy==='hybrid'&&(odd<2||odd>4||low<2||low>4))continue;if(strategy==='sum'&&reference&&reference.sums.length>=10){let sums=reference.sums.slice().sort((a,b)=>a-b),min=sums[Math.floor(sums.length*.2)],upper=sums[Math.floor(sums.length*.8)];if(sum<min||sum>upper)continue}return numbers}return numbers}
+function generate(){return title('Kombinasyon Oluştur','Farklı stratejilerle geçerli ve benzersiz kolonlar üretin.')+selectGame()+dataNotice()+`<form id="generateForm" class="card"><label class="field">Strateji<select name="strategy">${Object.entries(STRATEGIES).map(([v,k])=>`<option value="${v}">${k}</option>`).join('')}</select></label><div class="two"><label class="field">Kolon adedi<input type="number" name="count" value="5" min="1" max="100" required></label><label class="field">Tohum (isteğe bağlı)<input type="number" name="seed" placeholder="Rastgele"></label></div><button class="btn full">✦ Kolonları oluştur</button></form><div id="generated">${genResults.length?genHTML():''}</div><div class="card"><h2>Önemli açıklama</h2><p class="mini muted">Adil çekilişlerde bütün geçerli 6'lı kombinasyonların tam isabet olasılığı aynıdır. Frekans ve dağılım stratejileri bu matematiksel olasılığı artırmaz.</p></div>`}
+function seeded(seed){let x=(Number(seed)>>>0)||1;return ()=>{x+=0x6D2B79F5;let t=x;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296}}
+function genHTML(){return `<div class="card"><div class="section-head"><h2>Üretilen kolonlar</h2><span class="tag">${genResults.length} adet</span></div>${genResults.map((n,i)=>`<div class="record"><div class="mini muted">Kolon ${i+1}</div>${balls(n)}</div>`).join('')}<div class="actions"><button class="btn" id="saveGen">Cihaza kaydet</button><button class="btn secondary" id="copyGen">Kopyala</button></div></div>`}
+function performance(){const ps=state.predictions.filter(p=>p.game===state.game).slice().reverse();return title('Performans ve Kayıtlar','Kayıtlı kombinasyonlarınızı görüntüleyin.')+selectGame()+`<div class="card"><h2>Kayıtlı kolonlar · ${ps.length}</h2>${ps.length?ps.slice(0,100).map(p=>`<div class="record"><div class="mini muted">${new Date(p.createdAt).toLocaleString('tr-TR')} · ${esc(STRATEGIES[p.strategy]||p.strategy)}</div>${balls(p.numbers)}</div>`).join(''):'<div class="empty">Henüz kayıtlı kombinasyon yok.</div>'}<button class="btn secondary" id="exportBackup">JSON yedeği indir</button></div><div class="card"><h2>Geriye dönük değerlendirme</h2><button id="runBacktest" class="btn secondary">Geçmiş performansı hesapla</button><div id="backtestReport" class="mini muted" aria-live="polite"></div><p class="mini muted">Bu çevrimdışı sürüm, kaydettiğiniz tahminleri listeler. Sunucuya bağlandığınızda kronolojik karşılaştırma hesaplanabilir. Sonuçlar gelecek çekiliş başarısını garanti etmez.</p></div>`}
+function more(){return title('Ayarlar ve Veri Yönetimi','Cihaz kayıtlarını ve uygulama tercihlerini yönetin.')+`<div class="card"><h2>Veri kaynağı</h2><div class="muted-box">Resmî veri kontrolü: <b>${esc(state.syncInfo?.[state.game]?.message||'Henüz kontrol edilmedi')}</b><br>Son kontrol: <b>${esc(state.syncInfo?.[state.game]?.checkedAt?new Date(state.syncInfo[state.game].checkedAt).toLocaleString('tr-TR'):'—')}</b><br>Cihaz depolaması: <b>${esc(mode)}</b><br>Resmî doğrulanmış veri: <b>${state.draws.filter(x=>x.status==='official_verified').length}</b><br>Kullanıcı tarafından girilen veri: <b>${state.draws.filter(x=>x.status==='user_imported').length}</b></div><button class="btn full" id="syncNow" style="margin-top:12px">Şimdi sonuçları kontrol et</button><p class="mini muted">Netlify Functions ile sonuç kontrolü denenir. Resmî site şablon veya erişim hatası döndürürse sonuçlar doğrulanamaz; manuel kayıtlarınız korunur. Tam geçmiş arşivi henüz otomatik taranmaz.</p><p class="mini muted">Resmî çekiliş sonuçlarına ulaşmak için <a style="color:var(--cyan)" href="https://www.millipiyangoonline.com/" target="_blank" rel="noopener noreferrer">Milli Piyango Online</a> bağlantısını kullanabilirsiniz. Manuel kayıtlar doğrulanmış sayılmaz.</p></div><div class="card"><h2>Uyuşmazlıklar · ${(state.conflicts||[]).length}</h2>${(state.conflicts||[]).slice(-15).map(c=>`<div class="record"><b>${esc(c.identity)}</b><p class="mini">Cihaz: ${esc(c.manual.numbers.join(' · '))}</p><p class="mini">Diğer kayıt: ${esc(c.official.numbers.join(' · '))}</p></div>`).join('')||'<p class="mini muted">Uyuşmazlık bulunmuyor.</p>'}</div><div class="card"><h2>Veri yedekleme</h2><div class="actions"><button class="btn" id="exportBackup">JSON yedeğini indir</button><button class="btn secondary" id="exportAllCsv">CSV arşivini indir</button></div><label class="field" style="margin-top:16px">Yedekten geri yükle (JSON)<input type="file" accept=".json" id="restoreFile"></label><button class="btn secondary full" id="restoreBtn">Yedeği geri yükle</button></div><div class="card"><h2>Görünüm</h2><button class="btn secondary full" id="themeInline">Açık / koyu temayı değiştir</button></div><div class="card"><h2>Uygulama bilgisi</h2><p class="mini muted">LotoAnaliz AI Mobil v1.0 · Berber Ajandam gibi bağımsız PWA. Kalıcı veri bu cihazın tarayıcı alanında saklanır, farklı cihazlara otomatik aktarılmaz. Dosya yöneticisinden HTML açmak yerine HTTPS adresinden yükleyin.</p><button id="clearAll" class="btn danger">Tüm cihaz verilerini sil</button></div>`}
+function render(){const c=$('#content');const pages={home,archive,stats,generate,performance,more};c.innerHTML=(pages[page]||home)();$$('.bottom [data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page||(page==='performance'&&b.dataset.page==='more')));$('#themeBtn').textContent=state.theme==='light'?'☀':'☾';const badge=$('#onlineBadge');badge.textContent=navigator.onLine?'● Çevrimiçi':'● Çevrimdışı';badge.classList.toggle('off',!navigator.onLine)}
+function validateNums(nums,game){if(!Array.isArray(nums)||nums.length!==6||nums.some(n=>!Number.isInteger(n)||n<1||n>RULES[game].max)||new Set(nums).size!==6)throw Error(`${RULES[game].name}: 1–${RULES[game].max} aralığında 6 farklı tam sayı gerekli.`);return nums.slice().sort((a,b)=>a-b)}
+function normalizeDraw(o){const game=String(o.game??o.oyun??state.game).trim().toLowerCase();if(!RULES[game])throw Error('Oyun sayisal veya super olmalı.');const date=String(o.date??o.tarih??'').trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(new Date(date+'T00:00:00Z').valueOf())||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)throw Error('Geçersiz tarih: '+date);let nums=o.numbers??(Array.from({length:6},(_,i)=>o['n'+(i+1)]));if(typeof nums==='string')nums=nums.split(/[;,\s]+/);nums=validateNums(nums.map(Number),game);const drawNumber=String(o.drawNumber??o.draw_number??o.cekilis_no??'').trim();return {id:game+'|'+date+'|'+drawNumber,game,date,drawNumber,numbers:nums,status:'user_imported',source:'local_file',addedAt:now()}}
+function csvParse(line){let output=[],val='',quoted=false;for(let i=0;i<line.length;i++){let c=line[i];if(c==='"'){if(quoted&&line[i+1]==='"'){val+='"';i++}else quoted=!quoted}else if(c===','&&!quoted){output.push(val.trim());val=''}else val+=c}output.push(val.trim());return output}
+function parseCSV(text){let lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(x=>x.trim());if(!lines.length)return [];let header=csvParse(lines[0]).map(x=>x.toLowerCase().trim());const fields=['game','date','draw_number','n1','n2','n3','n4','n5','n6'];let hasHeader=header.includes('date')&&header.includes('n1');return lines.slice(hasHeader?1:0).map((line,i)=>{let cols=csvParse(line),obj={};(hasHeader?header:fields).forEach((k,j)=>obj[k]=cols[j]);try{return normalizeDraw(obj)}catch(e){throw Error(`CSV satır ${i+(hasHeader?2:1)}: ${e.message}`)}})}
+async function importRecords(records){let map=new Map(state.draws.map(d=>[d.id,d])),added=0,conflicts=0;state.conflicts=state.conflicts||[];for(const x of records){let old=map.get(x.id);if(!old){map.set(x.id,x);added++}else if(old.numbers.join(',')!==x.numbers.join(',')){conflicts++;if(!state.conflicts.some(c=>c.identity===x.id&&c.official.numbers.join(',')===x.numbers.join(',')))state.conflicts.push({identity:x.id,manual:old,official:x,detectedAt:now(),kind:'import_conflict'})}}state.draws=Array.from(map.values());await persist();render();toast(added+' kayıt eklendi; '+conflicts+' uyuşmazlık. Mevcut kayıtlar korundu.')}
+
+function download(name,content,type){const url=URL.createObjectURL(new Blob([content],{type}));let a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}function csvExport(){return 'game,date,draw_number,n1,n2,n3,n4,n5,n6\n'+state.draws.map(x=>[x.game,x.date,JSON.stringify(x.drawNumber),...x.numbers].join(',')).join('\n')}function doBackup(){download('LotoAnaliz-AI-yedek-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify({...state,exportedAt:now()},null,2),'application/json')}
+function changeTheme(){state.theme=state.theme==='light'?'dark':'light';document.body.classList.toggle('light',state.theme==='light');persist();render()}
+async function bindClicks(e){const t=e.target.closest('button');if(!t)return;try{if(t.id==='runBacktest'){const box=$('#backtestReport');box.textContent='Sunucudan doğrulanmış çekilişler kontrol ediliyor...';try{const resp=await fetch('./api/backtests/run',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({game:state.game,strategy:'random',warmup:25,count:1,seed:42})});if(!resp.ok)throw Error('API HTTP '+resp.status);const result=await resp.json();box.textContent=result.status==='ok'?('Test edilen çekiliş: '+result.tested_draws+' · Ortalama eşleşme: '+result.mean_matches.toFixed(2)+' · Rastgele temel: '+result.baseline_mean_matches.toFixed(2)):'Kronolojik değerlendirme için yeterli doğrulanmış kayıt yok.'}catch(err){box.textContent='Performans servisi kullanılamıyor: '+err.message}}else if(t.id==='syncAllNow'||t.id==='syncNow'){t.disabled=true;t.textContent='İki oyun kontrol ediliyor…';try{await syncBoth(true)}finally{render()}}else if(t.dataset.page){page=t.dataset.page;genResults=[];render();scrollTo(0,0)}else if(t.dataset.go){page=t.dataset.go;render();scrollTo(0,0)}else if(t.id==='themeBtn'||t.id==='themeInline')changeTheme();else if(t.id==='importBtn'){const file=$('#importFile')?.files?.[0];if(!file)return toast('Bir CSV veya JSON dosyası seçin.');const txt=await file.text();let rows;if(file.name.toLowerCase().endsWith('.csv'))rows=parseCSV(txt);else{const data=JSON.parse(txt);if(!Array.isArray(data))throw Error('JSON bir çekiliş dizisi olmalı.');rows=data.map(normalizeDraw)}await importRecords(rows)}else if(t.id==='saveGen'){if(!genResults.length)return;const strategy=$('#generateForm [name=strategy]')?.value||'random';let saved=genResults.map(numbers=>({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()),game:state.game,createdAt:now(),strategy,numbers}));state.predictions.push(...saved);await persist();toast(saved.length+' kolon kaydedildi.')}else if(t.id==='copyGen'){const txt=genResults.map((n,i)=>`${i+1}. ${n.join(' - ')}`).join('\n');if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(txt);toast('Kopyalandı.')}else download('loto-kolonlar.txt',txt,'text/plain')}else if(t.id==='exportCsv'||t.id==='exportAllCsv')download('loto-arsiv.csv',csvExport(),'text/csv;charset=utf-8');else if(t.id==='exportBackup')doBackup();else if(t.id==='restoreBtn'){let file=$('#restoreFile')?.files?.[0];if(!file)return toast('Yedek dosyası seçin.');let o=JSON.parse(await file.text());if(!Array.isArray(o.draws)||!Array.isArray(o.predictions))throw Error('Geçersiz yedek yapısı.');let clean=o.draws.map(d=>({...normalizeDraw(d),status:'user_imported'}));let countBefore=state.draws.length;await importRecords(clean);let known=new Set(state.predictions.map(x=>x.id));for(const item of o.predictions){if(RULES[item.game]&&Array.isArray(item.numbers)&&item.numbers.length===6&&!known.has(item.id)){state.predictions.push({...item,numbers:validateNums(item.numbers.map(Number),item.game)});known.add(item.id)}}await persist();render();toast('Güvenli birleştirme tamamlandı. Önceki '+countBefore+' kayıt korunmuştur.')}else if(t.id==='clearAll'){if(!confirm('Tüm çekilişler ve kayıtlı kolonlar silinecek. Emin misiniz?'))return;state={...clone(DEFAULT),theme:state.theme};await persist();render();toast('Cihaz verileri silindi.')}}catch(err){toast('Hata: '+err.message)}}
+async function bindForms(e){if(e.target.id==='addDrawForm'){e.preventDefault();try{const f=new FormData(e.target),d=normalizeDraw({game:state.game,date:f.get('date'),drawNumber:f.get('drawNumber'),numbers:String(f.get('numbers')).split(/[;,\s]+/)});await importRecords([d])}catch(err){toast(err.message)}}else if(e.target.id==='generateForm'){e.preventDefault();try{const f=new FormData(e.target),strategy=f.get('strategy'),count=Number(f.get('count')),seed=String(f.get('seed'));if(!STRATEGIES[strategy]||!Number.isInteger(count)||count<1||count>100)throw Error('Strateji veya kolon sayısı geçersiz.');let ran=seed.trim()?seeded(seed):Math.random,ds=eligible(),seen=new Set(),res=[];for(let k=0;k<count*250&&res.length<count;k++){const n=generateOne(ds,strategy,ran),key=n.join('-');if(!seen.has(key)){seen.add(key);res.push(n)}}if(res.length<count)throw Error('Benzersiz kolonlar oluşturulamadı.');genResults=res;$('#generated').innerHTML=genHTML();toast(count+' kolon üretildi.')}catch(err){toast(err.message)}}}
+function bindChanges(e){if(e.target.id==='gameSelector'){state.game=e.target.value;genResults=[];persist();render();syncOfficial()}else if(e.target.id==='searchDraw'){const q=e.target.value.toLowerCase().trim();const ds=draws().slice().reverse().filter(d=>d.date.includes(q)||String(d.drawNumber).toLowerCase().includes(q));$('#drawList').innerHTML=drawItems(ds.slice(0,40))}else if(e.target.id==='period'){const n=e.target.value;const ds=eligible();$('#statsContent').innerHTML=statsHTML(n==='all'?ds:ds.slice(-Number(n)))}}
+const syncingGames=new Set();
+async function syncBoth(force=false){
+ if(!navigator.onLine){toast('İnternet bağlantısı yok; kayıtlar korundu.');return;}
+ await Promise.allSettled(['sayisal','super'].map(g=>syncOfficial(force,g)));
+}
+async function syncOfficial(force=false, gameArg=state.game){
+ if(syncingGames.has(gameArg)){if(force)toast('Bu oyun için kontrol zaten sürüyor.');return;}
+ if(!navigator.onLine){if(force)toast('İnternet bağlantısı yok.');return;}
+ syncingGames.add(gameArg);
+ state.syncInfo=state.syncInfo||{};
+ state.syncInfo[gameArg]={...state.syncInfo[gameArg],status:'checking',message:'Veri kaynağı kontrol ediliyor…',checkedAt:new Date().toISOString()};
+ render();
+ try{
+  // Same-origin API; never request the official site directly from the browser.
+  const response=await fetch('./api/sync?game='+encodeURIComponent(gameArg),{cache:'no-store',signal:AbortSignal.timeout(14000)});
+  if(!response.ok)throw Error('Netlify veri servisi HTTP '+response.status+' (fonksiyonların yayımlandığını kontrol edin)');
+  const data=await response.json();
+  if(!Array.isArray(data.results))throw Error('Beklenmeyen sunucu yanıtı');
+  // API erişilemediğinde kalıcı arşivde daha önce kaydedilen verileri göster.
+  if(!data.results.length){
+   try{const archived=await fetch('./.netlify/functions/history?game='+encodeURIComponent(gameArg),{cache:'no-store',signal:AbortSignal.timeout(9000)});
+    if(archived.ok){const historic=await archived.json();if(Array.isArray(historic.results)&&historic.results.length){data.results=historic.results;data.message=(data.message||'Kaynak kullanılamıyor')+' · Kalıcı arşivden '+historic.results.length+' önceki kayıt gösteriliyor.';}}}
+   catch(_e){/* Arşiv erişimi başarısızsa asıl kaynak hatasını koru */}
+  }
+  const byIdentity=d=>d.game+'|'+d.date+'|'+(d.drawNumber||'');
+  const map=new Map(state.draws.map(d=>[byIdentity(d),d]));state.conflicts=state.conflicts||[];
+  let added=0,conflicts=0,confirmed=0;
+  for(const item of data.results){
+   const clean=normalizeDraw(item);
+   if(!/^https:\/\/api\.collectapi\.com\/chancegame\/(sayisalLoto|superLoto)$/.test(item.sourceUrl||''))continue;
+   const identity=byIdentity(clean);let previousKey=identity;let before=map.get(identity);
+   if(!before){const candidate=Array.from(map.entries()).find(([k,d])=>d.game===clean.game&&d.date===clean.date&&(!d.drawNumber||!clean.drawNumber));if(candidate){previousKey=candidate[0];before=candidate[1];map.delete(previousKey)}}
+   if(before){
+    if(before.date===clean.date&&before.numbers.join(',')===clean.numbers.join(',')){
+     if(before.status==='third_party_unverified')confirmed++;
+     map.set(identity,{...before,sourceUrl:before.sourceUrl||item.sourceUrl,checkedAt:data.checkedAt});
+    }else{
+     // Never silently overwrite a manual entry with conflicting official data.
+     map.set(identity,{...before,conflict:true,conflictMessage:'CollectAPI kaydıyla eşleşmedi; mevcut veriniz korundu.'});
+     if(!state.conflicts.some(x=>x.identity===identity&&x.official.numbers.join(',')===clean.numbers.join(',')))state.conflicts.push({identity,manual:{...before},official:{...clean,sourceUrl:item.sourceUrl},detectedAt:now()});
+     conflicts++;
+    }
+   }else {map.set(identity,{...clean,id:clean.id,status:'third_party_unverified',source:'collectapi',sourceUrl:item.sourceUrl,checkedAt:data.checkedAt});added++}
+  }
+  state.draws=Array.from(map.values());
+  state.syncInfo=state.syncInfo||{};
+  state.syncInfo[gameArg]={status:data.status,message:data.message,checkedAt:data.checkedAt,added,confirmed,conflicts};
+  await persist();render();
+  if(force||added)toast(`${added} yeni kayıt, ${confirmed} doğrulama. ${conflicts} uyuşmazlık.`);
+ }catch(err){
+  state.syncInfo=state.syncInfo||{};
+  state.syncInfo[gameArg]={status:'unavailable',message:'Otomatik bağlantı kurulamadı: '+err.message,checkedAt:new Date().toISOString()};
+  try{await persist()}catch{}render();
+  if(force)toast('Otomatik kontrol yapılamadı. Manuel kayıtlarınız korunuyor.');
+ }finally{syncingGames.delete(gameArg)}
+}
+document.addEventListener('click',bindClicks);document.addEventListener('submit',bindForms);document.addEventListener('change',bindChanges);document.addEventListener('input',e=>{if(e.target.id==='searchDraw')bindChanges(e)});window.addEventListener('online',()=>{render();syncBoth(false)});window.addEventListener('offline',render);if('serviceWorker'in navigator&&location.protocol!=='file:')window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(e=>console.warn('Service worker:',e)));load();
+
+
+========================================================================
+DOSYA: caddyfile.example
+BYTES: 144
+SHA256: 2c5995e77490fd7aa6d445da35a4c2aefad0916a6b5c465ae1363a3f5bcc9384
+========================================================================
+# Update the domain and point DNS to the host before starting Caddy.
+loto.example.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:8000
+}
+
+
+========================================================================
+DOSYA: docker-compose.yml
+BYTES: 340
+SHA256: e0a0a0c2aa651840fd1cc6226e7255e21ba61e87fb7c41d65f3e4b82534d78b8
+========================================================================
+services:
+  lotoanaliz:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - loto_data:/app/data
+    environment:
+      LOTO_DB_PATH: /app/data/official_results.sqlite3
+      LOTO_ENABLE_SCHEDULER: "1"
+      LOTO_ADMIN_KEY: ${LOTO_ADMIN_KEY:?Set a long random secret}
+volumes:
+  loto_data:
+
+
+========================================================================
+DOSYA: dockerfile
+BYTES: 333
+SHA256: 96fbeb9c9bcf46a04af1d3f8a64ed1ed5cead349269b546290cf4008f727774c
+========================================================================
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+RUN mkdir -p /app/data && useradd -u 10001 -m appuser && chown -R appuser /app
+USER appuser
+ENV PYTHONDONTWRITEBYTECODE=1
+EXPOSE 8000
+CMD ["uvicorn","server:app","--host","0.0.0.0","--port","8000","--workers","1"]
+
+
+========================================================================
+DOSYA: extended_api.py
+BYTES: 11544
+SHA256: 8767ff8d199b8729889a97e744ca5f2dfd40d10fa33f8be852819f87434700ba
+========================================================================
+"""Backwards-compatible API router for server.py."""
+import json, os, sqlite3, time, hmac, csv, io
+from datetime import datetime, timezone
+from fastapi import APIRouter, HTTPException, Query, Header, UploadFile, File
+from pydantic import BaseModel, Field
+from fastapi.responses import Response
+from analysis_engine import frequency, distribution, cooccurrence, backtest, validate
+
+router=APIRouter(prefix='/api')
+DB_PATH=None
+
+def connect_db():
+    db=sqlite3.connect(DB_PATH, timeout=10)
+    db.row_factory=sqlite3.Row
+    db.execute('PRAGMA busy_timeout=10000')
+    db.execute('CREATE TABLE IF NOT EXISTS results (game TEXT NOT NULL,year INTEGER NOT NULL,draw_number INTEGER NOT NULL,draw_date TEXT NOT NULL,numbers TEXT NOT NULL,source_url TEXT NOT NULL,fetched_at TEXT NOT NULL,PRIMARY KEY(game,year,draw_number))')
+    db.execute('CREATE TABLE IF NOT EXISTS checks (game TEXT PRIMARY KEY,checked_at REAL NOT NULL,status TEXT NOT NULL,message TEXT NOT NULL)')
+    db.execute('CREATE TABLE IF NOT EXISTS sync_jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT NOT NULL, year INTEGER, started_at TEXT NOT NULL, finished_at TEXT, checked INTEGER DEFAULT 0, inserted INTEGER DEFAULT 0, rejected INTEGER DEFAULT 0, status TEXT NOT NULL, cursor INTEGER DEFAULT 1, message TEXT DEFAULT "")')
+    db.execute('CREATE TABLE IF NOT EXISTS backtest_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT NOT NULL, strategy TEXT NOT NULL, created_at TEXT NOT NULL, parameters TEXT NOT NULL, report TEXT NOT NULL)')
+    db.execute('CREATE TABLE IF NOT EXISTS imports (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT NOT NULL, imported_at TEXT NOT NULL, count INTEGER NOT NULL, original_name TEXT NOT NULL, source_type TEXT NOT NULL)')
+    db.execute('CREATE TABLE IF NOT EXISTS rejects (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT NOT NULL, year INTEGER, draw_number INTEGER, reason TEXT NOT NULL, checked_at TEXT NOT NULL, UNIQUE(game,year,draw_number))')
+    return db
+
+def database_draws(game, from_date=None,to_date=None):
+    if game not in ('sayisal','super'):raise HTTPException(400,'Geçersiz oyun')
+    with connect_db() as db:
+        records=db.execute('SELECT year,draw_date,draw_number,numbers,source_url,fetched_at FROM results WHERE game=? ORDER BY draw_date,draw_number',(game,)).fetchall()
+    return [{'game':game,'year':r['year'],'date':r['draw_date'],'drawNumber':str(r['draw_number']), 'draw_number':r['draw_number'],
+             'numbers':json.loads(r['numbers']), 'status':'official_verified','sourceUrl':r['source_url'],'fetchedAt':r['fetched_at']}
+             for r in records if (not from_date or r['draw_date']>=from_date) and (not to_date or r['draw_date']<=to_date)]
+
+@router.get('/games')
+def games():return [{'code':'sayisal','name':'Çılgın Sayısal Loto','max_number':90,'numbers_per_draw':6}, {'code':'super','name':'Süper Loto','max_number':60,'numbers_per_draw':6}]
+
+@router.get('/draws')
+def draws(game:str='sayisal',limit:int=Query(50,ge=1,le=500),offset:int=Query(0,ge=0),from_date:str|None=None,to_date:str|None=None):
+    all_rows=database_draws(game,from_date,to_date)
+    return {'total':len(all_rows),'results':list(reversed(all_rows))[offset:offset+limit]}
+
+@router.get('/draws/latest')
+def latest(game:str='sayisal'):
+    r=database_draws(game)
+    return {'result':r[-1] if r else None}
+
+@router.get('/analytics/frequency')
+def analytics_frequency(game:str='sayisal',limit_draws:int=Query(0,ge=0,le=100000),from_date:str|None=None,to_date:str|None=None):
+    ds=database_draws(game,from_date,to_date)
+    if limit_draws:ds=ds[-limit_draws:]
+    return {'game':game,'sample_size':len(ds),'verified_only':True,'numbers':frequency(game,ds)}
+
+@router.get('/analytics/distribution')
+def analytics_distribution(game:str='sayisal',low_boundary:int|None=None,from_date:str|None=None,to_date:str|None=None):
+    ds=database_draws(game,from_date,to_date)
+    return distribution(game,ds,low_boundary)
+
+@router.get('/analytics/significance')
+def analytics_significance(game:str='sayisal', simulations:int=Query(1500,ge=200,le=10000),seed:int=42):
+    from analysis_engine import significance
+    return significance(game,database_draws(game),simulations,seed)
+
+@router.get('/analytics/details')
+def analytics_details(game:str='sayisal',from_date:str|None=None,to_date:str|None=None):
+    from analysis_engine import draw_details
+    return draw_details(game,database_draws(game,from_date,to_date))
+
+@router.get('/analytics/cooccurrence')
+def analytics_cooccurrence(game:str='sayisal',size:int=Query(2,ge=2,le=3),limit:int=Query(30,ge=1,le=1000)):
+    ds=database_draws(game)
+    return {'sample_size':len(ds),'size':size,'results':cooccurrence(ds,size,limit)}
+
+class BacktestRequest(BaseModel):
+    game:str='sayisal'
+    strategy:str='random'
+    count:int=Field(default=1,ge=1,le=100)
+    warmup:int=Field(default=25,ge=1)
+    seed:int=42
+
+@router.post('/backtests/run')
+def run_backtest(req:BacktestRequest):
+    if req.game not in ('sayisal','super'):raise HTTPException(400,'Geçersiz oyun')
+    report=backtest(req.game,database_draws(req.game),req.strategy,req.count,req.warmup,req.seed)
+    with connect_db() as db:
+        db.execute('INSERT INTO backtest_runs(game,strategy,created_at,parameters,report) VALUES(?,?,?,?,?)',
+          (req.game,req.strategy,datetime.now(timezone.utc).isoformat(),req.model_dump_json(),json.dumps(report,ensure_ascii=False)))
+    return report
+
+@router.get('/backtests')
+def backtests(limit:int=Query(25,ge=1,le=200)):
+    with connect_db() as db:
+        entries=db.execute('SELECT id,game,strategy,created_at,parameters,report FROM backtest_runs ORDER BY id DESC LIMIT ?',(limit,)).fetchall()
+    return {'results':[dict(id=x['id'],game=x['game'],strategy=x['strategy'],created_at=x['created_at'],parameters=json.loads(x['parameters']),report=json.loads(x['report'])) for x in entries]}
+
+@router.get('/sync/status')
+def sync_status():
+    with connect_db() as db:
+        rows=db.execute('SELECT game,checked_at,status,message FROM checks').fetchall()
+        jobs=db.execute('SELECT * FROM sync_jobs ORDER BY id DESC LIMIT 10').fetchall()
+        rejects=db.execute('SELECT game,count(*) AS count FROM rejects GROUP BY game').fetchall()
+    return {'checks':[dict(x) for x in rows],'recent_jobs':[dict(x) for x in jobs], 'rejected_by_game':[dict(x) for x in rejects],
+            'complete_history_verified':False}
+
+@router.get('/coverage')
+def coverage(game:str='sayisal'):
+    ds=database_draws(game)
+    with connect_db() as db:
+        years=[dict(r) for r in db.execute('SELECT year,count(*) as verified FROM results WHERE game=? GROUP BY year ORDER BY year',(game,))]
+        rejected=db.execute('SELECT count(*) FROM rejects WHERE game=?',(game,)).fetchone()[0]
+    return {'game':game,'verified':len(ds),'by_year':years,'rejected':rejected,'all_history_complete':False,'note':'Bağımsız resmî arşiv kapsam doğrulaması yapılmadı.'}
+
+class PredictionsRequest(BaseModel):
+    game:str='sayisal';strategy:str='random';count:int=Field(5,ge=1,le=100);seed:int=42
+
+@router.post('/predictions/generate')
+def prediction_generate(req:PredictionsRequest):
+    import random
+    from analysis_engine import generated
+    if req.game not in ('sayisal','super'):raise HTTPException(400,'Geçersiz oyun')
+    if req.strategy not in ('random','hot','recent','odd','low','sum','pairs','hybrid'):raise HTTPException(400,'Geçersiz strateji')
+    rng=random.Random(req.seed); ds=database_draws(req.game);out=[];seen=set()
+    for _ in range(req.count*100):
+        x=generated(req.game,req.strategy,ds,rng);k=tuple(x)
+        if k not in seen:seen.add(k);out.append(x)
+        if len(out)==req.count:break
+    return {'game':req.game,'strategy':req.strategy,'seed':req.seed,'verified_sample':len(ds),'combinations':out,'disclaimer':'Kazanma olasılığında kanıtlanmış bir artış yoktur.'}
+
+@router.get('/predictions')
+def predictions():return {'results':[],'note':'Tahminler bu cihazdaki PWA üzerinde tutulur; API sunucusuna aktarılmaz.'}
+
+
+def check_admin(header_value):
+    required=os.environ.get('LOTO_ADMIN_KEY','')
+    if not required or not header_value or not hmac.compare_digest(required,header_value):
+        raise HTTPException(403,'Yönetici yetkisi gerekli')
+
+@router.get('/draws/export.csv')
+def export_draws(game:str='sayisal'):
+    items=database_draws(game)
+    output=io.StringIO(); writer=csv.writer(output)
+    writer.writerow(['game','date','drawNumber','n1','n2','n3','n4','n5','n6','sourceUrl'])
+    for d in items:writer.writerow([d['game'],d['date'],d['drawNumber'],*d['numbers'],d['sourceUrl'] if d['sourceUrl'].startswith('https://www.millipiyangoonline.com/') else ''])
+    return Response(output.getvalue(),media_type='text/csv; charset=utf-8',headers={'Content-Disposition':f'attachment; filename={game}-verified.csv'})
+
+@router.post('/import/csv')
+async def import_csv(file:UploadFile=File(...),x_admin_key:str|None=Header(None)):
+    """Operator-reviewed official CSV only; does not promote arbitrary CSV to verified."""
+    check_admin(x_admin_key)
+    raw=await file.read(2_000_001)
+    if len(raw)>2_000_000:raise HTTPException(413,'Dosya çok büyük')
+    try:
+        text=raw.decode('utf-8-sig'); items=list(csv.DictReader(io.StringIO(text)))
+    except (UnicodeError,csv.Error):raise HTTPException(422,'CSV okunamadı')
+    if len(items)>10000:raise HTTPException(413,'Çok fazla kayıt')
+    # Never allow a user-provided CSV to become officially verified without checking official source.
+    inserted=0; invalid=0
+    with connect_db() as db:
+        db.execute('CREATE TABLE IF NOT EXISTS unverified_imports (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT NOT NULL, draw_date TEXT NOT NULL, draw_number TEXT, numbers TEXT NOT NULL, imported_at TEXT NOT NULL, UNIQUE(game,draw_date,draw_number))')
+        for row in items:
+            try:
+                game=row.get('game','').strip();number_text=row.get('drawNumber','').strip()
+                if game not in ('sayisal','super'):raise ValueError('invalid game')
+                draw_date=datetime.strptime(row.get('date',''),'%Y-%m-%d').date().isoformat()
+                numbers=validate(game,[int(row[f'n{i}']) for i in range(1,7)])
+                result=db.execute('INSERT OR IGNORE INTO unverified_imports(game,draw_date,draw_number,numbers,imported_at) VALUES(?,?,?,?,?)',
+                   (game,draw_date,number_text,json.dumps(numbers),datetime.now(timezone.utc).isoformat()))
+                inserted+=result.rowcount
+            except (ValueError,TypeError,KeyError):invalid+=1
+        db.execute('INSERT INTO imports(game,imported_at,count,original_name,source_type) VALUES(?,?,?,?,?)',
+                   ('mixed',datetime.now(timezone.utc).isoformat(),inserted,(file.filename or 'upload')[:100],'unverified_csv'))
+    return {'status':'unverified','inserted':inserted,'invalid':invalid,'note':'İçe aktarılan CSV kayıtları resmî doğrulanmış arşive eklenmedi.'}
+
+@router.get('/imports/unverified')
+def unverified_imports(x_admin_key:str|None=Header(None),limit:int=Query(100,ge=1,le=1000)):
+    check_admin(x_admin_key)
+    with connect_db() as db:
+        db.execute('CREATE TABLE IF NOT EXISTS unverified_imports (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT NOT NULL, draw_date TEXT NOT NULL, draw_number TEXT, numbers TEXT NOT NULL, imported_at TEXT NOT NULL, UNIQUE(game,draw_date,draw_number))')
+        return {'results':[dict(r) for r in db.execute('SELECT * FROM unverified_imports ORDER BY id DESC LIMIT ?',(limit,))]}
+
+
+========================================================================
+DOSYA: icons/icon-192.png
+BYTES: 2611
+SHA256: 2d6cf8926a3aea66a346d1c3c6da04f80e76bc2e71898dc2e38b957e03708f12
+========================================================================
+[BINARY BASE64]
+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
+
+========================================================================
+DOSYA: icons/icon-512.png
+BYTES: 7351
+SHA256: 8429b0c255ecfed5b601e217c8a30bcc0e78365cc2cf749bf94be3f2e717101b
+========================================================================
+[BINARY BASE64]
+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
+
+========================================================================
+DOSYA: index.html
+BYTES: 1512
+SHA256: cba11c976f0b940bc7917712d965fd76136eed6ce3f61294ad1675dd0e0c4467
+========================================================================
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111827"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="description" content="LotoAnaliz AI — çevrimdışı çekiliş analizi ve kombinasyon üretimi"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png"><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="style.css"><title>LotoAnaliz AI</title></head><body><div class="app"><header class="top"><div class="brand"><div class="brand-mark">✦</div><div><b>LotoAnaliz <em>AI</em></b><small>VERİ ODAKLI ANALİZ PLATFORMU</small></div></div><div class="top-actions"><span id="onlineBadge" class="pill">●</span><button id="themeBtn" class="icon-btn" aria-label="Temayı değiştir">☾</button></div></header><main id="content" tabindex="-1"></main><nav class="bottom" aria-label="Ana menü"><button data-page="home" class="active"><span>⌂</span>Özet</button><button data-page="archive"><span>▤</span>Arşiv</button><button data-page="stats"><span>▥</span>Analiz</button><button data-page="generate"><span>✦</span>Üret</button><button data-page="more"><span>☷</span>Diğer</button></nav><div id="toast" role="status" aria-live="polite"></div></div><script src="app.js" defer></script></body></html>
+
+
+========================================================================
+DOSYA: kullanici_test_plani.md
+BYTES: 1424
+SHA256: 7b9b8cf7f943454f118fdeb9b3122dfad535c79ad0a5586cdcd2b8ca5288c947
+========================================================================
+# LotoAnaliz AI V8 — Kullanıcı kabul testleri
+
+- [ ] `start-windows.bat` çalışıyor, `http://127.0.0.1:8000` açılıyor.
+- [ ] Sayısal Loto ve Süper Loto sekmeleri çalışıyor.
+- [ ] İnternet kesildiğinde önbelleklenmiş arayüz açılıyor.
+- [ ] Manuel çekiliş girip yeniden açınca kayıt korunuyor.
+- [ ] JSON yedeği alınıp geri yüklenince mevcut kayıtlar silinmiyor.
+- [ ] Aynı çekiliş farklı sayılarla eklenirse çakışma uyarısı çıkıyor.
+- [ ] `http://127.0.0.1:8000/api/coverage?game=super` doğrulanan kayıt sayısını gösteriyor.
+- [ ] `http://127.0.0.1:8000/api/analytics/significance?game=super` örneklem yetersizse bunu bildiriyor.
+- [ ] Siteden çekilemeyen kayıtlar resmî doğrulanmış gibi işaretlenmiyor.
+- [ ] Telefon üzerinden HTTPS adresi ile ana ekrana kurulum (manuel cihaz testi gerektirir).
+- [ ] Resmî sonuçların canlı bağlantıyla alınması (erişilebilir sunucu ve izin gerekli).
+
+## Yönetici tarihsel tarama
+
+Sadece resmî sitede izin verilen erişim için. Uzun bir yönetici anahtarı tanımlayın (`LOTO_ADMIN_KEY`). Anahtarı kullanıcıya açık tarayıcı koduna koymayın.
+
+```bash
+curl -H "x-admin-key: SIZIN_GIZLI_ANAHTARINIZ" 'http://127.0.0.1:8000/api/admin/history/resume?game=super&year=2026&batch=3'
+```
+
+Her çağrı kontrollü küçük partiyi dener ve kaldığı imleci saklar. Bütün geçmişin tamamlandığını iddia etmez.
+
+
+========================================================================
+DOSYA: kurulum.txt
+BYTES: 1458
+SHA256: 5e0e91ff5fb58f5ea760017364f3aefd7025a061268a856b7aca3b6bb286cc83
+========================================================================
+LOTOANALIZ AI — ONLINE KONTROLLÜ MOBİL PWA V2
+
+ÖNEMLİ: Otomatik veri kontrolü yalnızca Python sunucusuyla birlikte çalışır.
+Statik hosting ya da index.html dosyasına çift tıklama resmî sonuçları otomatik getiremez.
+
+KURULUM:
+1. Bilgisayar/sunucuda Python 3.10+ kurulu olsun.
+2. Bu klasörde: pip install -r requirements.txt
+3. Ardından: uvicorn server:app --host 0.0.0.0 --port 8000
+4. http://localhost:8000 sayfasını açın.
+5. Android PWA kurulumu için HTTPS alan adıyla yayımlayın.
+
+HER AÇILIŞTA:
+- Tarayıcı sunucunun /api/sync hizmetini kontrol eder.
+- Sunucu sonuç sayfalarını kısıtlı sayıda ve kontrollü inceler.
+- Erişilebilen ve biçimi doğrulanabilen kayıtlar saklanır.
+- Elle girilen kayıtlar silinmez; farklı sayılar varsa uyuşmazlık görünür.
+- Sonuç alınamazsa uygulama çevrimdışı kayıtlarla kullanılmaya devam eder.
+
+SINIRLAMALAR:
+- Sonuç sitesine erişim engeli/CAPTCHA aşılmaz.
+- Tüm tarihsel verileri eksiksiz alma sistemi değildir.
+- Kaynak site HTML yapısı değişirse doğrulama başarısız olabilir.
+- Varsayılan sunucu sınırlı sayıda güncel çekilişi inceler.
+- SQLite veritabanı sunucuda saklanır. Üretimde kalıcı disk kullanın.
+- Manuel kayıtlar telefonda IndexedDB üzerinde saklanır. Düzenli JSON yedeği alın.
+- Resmî siteye erişim bu ortamda ağ DNS kısıtı nedeniyle canlı test edilemedi.
+- Sonuç eşleşse bile kazanma olasılığı artmaz.
+
+
+========================================================================
+DOSYA: manifest.webmanifest
+BYTES: 470
+SHA256: d0836244fb604e5d0c3890128345b8215fa8c0bbdc7f6ad52a93225d1f6cb3cf
+========================================================================
+{"name":"LotoAnaliz AI — Loto Analiz Platformu","short_name":"LotoAnaliz AI","description":"Çevrimdışı loto arşivi, istatistik ve kombinasyon üretimi","start_url":"./","scope":"./","display":"standalone","background_color":"#0d1322","theme_color":"#111827","lang":"tr","icons":[{"src":"icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},{"src":"icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]}
+
+
+========================================================================
+DOSYA: netlify/functions/_core.mjs
+BYTES: 5276
+SHA256: bdfdda6357eb5c2b078b0a2ed0848a7d84e90871448337b73bfa1a1baef0e362
+========================================================================
+const SPECS={
+ sayisal:{name:'Çılgın Sayısal Loto',size:6,max:90,endpoint:'/chancegame/sayisalLoto'},
+ super:{name:'Süper Loto',size:6,max:60,endpoint:'/chancegame/superLoto'},
+ sans:{name:'Şans Topu',size:5,max:34,extraMax:14},
+ onnumara:{name:'On Numara',size:22,max:80}
+};
+export const games=Object.keys(SPECS);
+export function validate(game,record){
+ const s=SPECS[game];if(!s)throw Error('Geçersiz oyun');
+ if(!/^\d{4}-\d\d-\d\d$/.test(record.date)||new Date(record.date+'T00:00:00Z').toISOString().slice(0,10)!==record.date)throw Error('Geçersiz tarih');
+ const nums=record.numbers;
+ if(!Array.isArray(nums)||nums.length!==s.size||nums.some(x=>!Number.isInteger(x)||x<1||x>s.max)||new Set(nums).size!==nums.length)throw Error('Sayı adedi/aralığı geçersiz');
+ if(game==='sans'&&(!Number.isInteger(record.extra)||record.extra<1||record.extra>s.extraMax))throw Error('Şans Topu ekstra sayı geçersiz');
+ return {...record,game,numbers:[...nums].sort((a,b)=>a-b)};
+}
+export function parseCollect(game,obj){
+ if(!['sayisal','super'].includes(game))throw Error('Bu oyun için doğrulanmış API adaptörü yok');
+ const a=String(obj?.tarih||'').match(/^(\d{2})\.(\d{2})\.(\d{4})$/);if(!a)throw Error('Tarih yok');
+ const numbers=String(obj.rakamlar||'').split(/\s*[-,;]\s*/).map(Number);
+ return validate(game,{date:`${a[3]}-${a[2]}-${a[1]}`,numbers,drawNumber:String(obj.cekilisNo||obj.drawNumber||'').trim(),source:'collectapi',sourceUrl:'https://api.collectapi.com'+SPECS[game].endpoint,verification:'third_party_unverified',extra:null});
+}
+export function respond(code,obj){return {statusCode:code,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'},body:JSON.stringify(obj)}};
+export function config(){const base=process.env.SUPABASE_URL,key=process.env.SUPABASE_SERVICE_ROLE_KEY;if(!base||!key)return null;const u=new URL(base);if(u.protocol!=='https:')throw Error('SUPABASE_URL https olmalı');return {url:u.origin,key};}
+export async function db(path,{method='GET',body,prefer}={}){const c=config();if(!c)throw Error('Supabase yapılandırılmadı');const ctrl=AbortSignal.timeout(9000);const response=await fetch(c.url+'/rest/v1/'+path,{method,headers:{apikey:c.key,authorization:'Bearer '+c.key,'content-type':'application/json',...(prefer?{prefer}:{})},body:body===undefined?undefined:JSON.stringify(body),signal:ctrl});let txt=await response.text();if(!response.ok)throw Error('Veritabanı HTTP '+response.status+' '+txt.slice(0,120));try{return txt?JSON.parse(txt):null}catch{return null}}
+export async function fetchGame(game){const spec=SPECS[game];if(!spec)return {status:'unsupported',results:[],message:'Bilinmeyen oyun'};
+ if(!spec.endpoint)return {status:'not_configured',results:[],message:spec.name+' için erişimi doğrulanmış izinli veri kaynağı henüz yapılandırılmadı.'};
+ const key=process.env.COLLECTAPI_KEY?.trim().replace(/^apikey\s+/i,'');if(!key)return {status:'configuration_required',results:[],message:'COLLECTAPI_KEY eksik'};
+ try{const r=await fetch('https://api.collectapi.com'+spec.endpoint,{headers:{authorization:'apikey '+key,accept:'application/json'},signal:AbortSignal.timeout(8500)});
+ if(!r.ok)return {status:'unavailable',results:[],httpStatus:r.status,message:'CollectAPI HTTP '+r.status};
+ const body=await r.json();if(body?.success!==true||!Array.isArray(body.result))return {status:'invalid_response',results:[],message:'API beklenen sonucu döndürmedi'};
+ const results=[],invalid=[];for(const item of body.result){try{results.push(parseCollect(game,item))}catch(e){invalid.push(e.message)}}
+ if(!results.length)return {status:'invalid_data',results:[],message:'Doğrulanabilir sonuç bulunamadı',invalidCount:invalid.length};
+ return {status:'ok',results,invalidCount:invalid.length,message:results.length+' kayıt üçüncü taraf kaynaktan alındı; resmî doğrulanmış değildir.'};
+ }catch(e){return {status:'unavailable',results:[],message:e.name==='TimeoutError'?'Veri kaynağı zaman aşımı':String(e.message).slice(0,120)}};
+}
+export async function syncOne(game,{persist=true}={}){
+ const checkedAt=new Date().toISOString(),f=await fetchGame(game),base={game,checkedAt,sourceUrl:SPECS[game]?.endpoint?'https://api.collectapi.com'+SPECS[game].endpoint:null,historyComplete:false,verification:'third_party_unverified',...f};let added=0,dbError=null;
+ if(config()&&persist){try{if(f.results.length){const records=f.results.map(r=>({game:r.game,draw_date:r.date,draw_number:r.drawNumber||null,numbers:r.numbers,extra:r.extra||null,source:r.source,source_url:r.sourceUrl,verification:r.verification,checked_at:checkedAt}));
+ // UNIQUE(game,draw_date) and DO NOTHING; never overwrite historical conflicts.
+ const inserted=await db('draws?on_conflict=game,draw_date',{method:'POST',body:records,prefer:'resolution=ignore-duplicates,return=representation'});added=Array.isArray(inserted)?inserted.length:0;}
+ await db('sync_logs',{method:'POST',body:{game,status:f.status,checked_at:checkedAt,inserted:added,message:f.message||null,source_url:base.sourceUrl},prefer:'return=minimal'});
+ }catch(e){dbError=e.message}}
+ return {...base,added,persisted:Boolean(config()&&!dbError),...(dbError?{databaseError:dbError}:{} )};
+}
+
+
+========================================================================
+DOSYA: netlify/functions/health.mjs
+BYTES: 277
+SHA256: 951330e72b6dad20df28cbe1b52c2aa63356b136ac167786d891d81fc9fb3de9
+========================================================================
+export default async function handler(){return new Response(JSON.stringify({ok:true,service:'LotoAnaliz AI Netlify Functions',mode:'netlify',officialIntegration:'verification_required'}),{headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}})}
+
+
+========================================================================
+DOSYA: netlify/functions/history.mjs
+BYTES: 803
+SHA256: dc6c6bfa6467b98748e086a6c2c86045e59a5bd0ddf5fc2f0b22b7f4f773d0d4
+========================================================================
+import {db,config,games,respond} from './_core.mjs';
+export const handler=async(event)=>{
+ const game=event.queryStringParameters?.game||'sayisal';if(!games.includes(game))return respond(400,{status:'error',message:'Geçersiz oyun'});
+ if(!config())return respond(200,{status:'configuration_required',results:[],message:'Supabase yapılandırılmadı'});
+ try{const rows=await db(`draws?game=eq.${encodeURIComponent(game)}&order=draw_date.desc&limit=500`);return respond(200,{status:'ok',game,results:rows.map(r=>({game:r.game,date:r.draw_date,drawNumber:r.draw_number||'',numbers:r.numbers,extra:r.extra,source:r.source,sourceUrl:r.source_url,status:r.verification})),partial:rows.length===500})}catch(e){return respond(503,{status:'unavailable',results:[],message:String(e.message).slice(0,140)})}
+};
+
+
+========================================================================
+DOSYA: netlify/functions/scheduled-sync.mjs
+BYTES: 481
+SHA256: b36335bcfc5a01689545600b92da06ad4aa40f1800cdddd7100ab47d2a676a3b
+========================================================================
+import {syncOne,games} from './_core.mjs';
+export const config={schedule:'15 */4 * * *'};
+export default async ()=>{
+ // Netlify scheduled functions run only in deployed production; no user input.
+ const output=[];for(const game of games){try{const r=await syncOne(game);output.push({game,status:r.status,added:r.added,persisted:r.persisted})}catch(e){output.push({game,error:String(e.message).slice(0,100)})}}
+ console.log('Scheduled LotoAnaliz check',JSON.stringify(output));
+};
+
+
+========================================================================
+DOSYA: netlify/functions/summary.mjs
+BYTES: 450
+SHA256: 63e727b90429c2820a48ccac3b4398038b3bffb8094ac5beeb6719ac5375d929
+========================================================================
+import {db,config,games,respond} from './_core.mjs';
+export const handler=async()=>{
+ if(!config())return respond(200,{status:'configuration_required',message:'Supabase yapılandırılmadı'});
+ try{const logs=await db('sync_logs?select=game,status,checked_at,inserted,message&order=checked_at.desc&limit=20');return respond(200,{status:'ok',games,logs})}catch(e){return respond(503,{status:'unavailable',message:String(e.message).slice(0,140)})}
+};
+
+
+========================================================================
+DOSYA: netlify/functions/sync.mjs
+BYTES: 515
+SHA256: dfdb154c41a8a5684522266ae57c986dc53200dc40bfc89fff686e3a6c0eef83
+========================================================================
+import {syncOne,respond,games} from './_core.mjs';
+export const handler=async(event)=>{
+ const game=event.queryStringParameters?.game;
+ if(!games.includes(game))return respond(400,{status:'error',results:[],message:'Oyun: '+games.join(', ')});
+ try{const out=await syncOne(game,{persist:false});return {...respond(200,out),headers:{...respond(200,out).headers,'cache-control':'public,max-age=0,s-maxage=300'}}}catch(e){return respond(500,{status:'error',game,results:[],message:String(e.message).slice(0,160)})}
+};
+
+
+========================================================================
+DOSYA: netlify.toml
+BYTES: 232
+SHA256: a42f08c51dec9616212ee226f834ae85d02fab837875285faef2eae1a08bf06c
+========================================================================
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/sync"
+  to = "/.netlify/functions/sync"
+  status = 200
+
+[[redirects]]
+  from = "/api/health"
+  to = "/.netlify/functions/health"
+  status = 200
+
+
+========================================================================
+DOSYA: production_limitations.md
+BYTES: 1108
+SHA256: 42fdb7cd2d33814d0505c929c28a11f433d7f513b478f59db59d602077c4b1ae
+========================================================================
+# Son sürüm kontrol ve sınırlamalar
+
+- **Canlı resmî site çekimi doğrulanmadı.** Resmî sayfalara buradaki Python ortamından doğrudan ağ erişimi yok. Gerçek HTTPS sunucuda uçtan uca deneme yapılmalı.
+- **Geçmiş arşiv tamlığı doğrulanmadı.** Yönetici kontrollü tarama partiler hâlindedir; 403 / 429 engelleri aşılmaz. Resmî kaynağın kullanım koşullarına uyun.
+- **Veritabanı SQLite.** Kalıcı disk ile tek sunuculu kullanım içindir; PostgreSQL migration bu pakette yoktur.
+- **Mobil Android / iOS gerçek cihaz testleri yapılmadı.** Ana ekran kurulumu HTTPS gerektirir.
+- **Bildirimler / hesaplar arası senkronizasyon** mevcut değil. Veri cihaz üzerinde saklanır; yedek kullanın.
+- **CSV API yüklemeleri asla resmî doğrulanmış sayılmaz.** Yönetici anahtarı gerektirir.
+- **Gelecek tarihler / eski oyun kuralı değişimleri** tam tarihsel modelle yönetilmedi; ilk tarihsel dönemleri aktarmadan kontrol edin.
+- **Kazanma garantisi yoktur.** İstatistik ve geriye dönük sonuçlar adil çekilişte bir kombinasyonun çekilme olasılığını artırmaz.
+
+
+========================================================================
+DOSYA: prompt_orijinal.md
+BYTES: 18592
+SHA256: 8d53710edc2eb1d15cf95267c275bbb9cc232f77060d92f6e25ca988f8e068d5
+========================================================================
+# LOTOANALİZ AI — MEVCUT V2 YAPISINI KORUYARAK TAM GELİŞTİRME PROMPTU
+
+## 1. ROL, HEDEF VE DEĞİŞMEZ KURALLAR
+Kıdemli full-stack yazılım geliştiricisi, veri mühendisi, istatistikçi, PWA uzmanı, güvenlik ve kalite mühendisi olarak çalış. Sana mevcut **LotoAnaliz-AI-Otomatik-Kontrol-V2.zip** ve önceki gereksinimler verilecek. Hedef, Türkiye'deki **Çılgın Sayısal Loto** ve **Süper Loto** sonuçlarını resmî siteden izin verilen ölçüde otomatik alan; alamadığı çekilişlerin güvenli biçimde elle girilmesini sağlayan; kalıcı arşiv, ileri istatistik, tahmin kombinasyonu ve tarafsız geçmiş performans testleri sunan, Türkçe ve kurulabilir PWA geliştirmektir.
+
+**En önemli şart: MEVCUT YAPIYI BOZMA.** Mevcut V2'nin `index.html`, `style.css`, gezinme düzeni, renk sistemi, mobil alt menüsü, çalışma mantığı, kayıtlı çekilişleri ve kolonları korunacak. Gerektiğinde mevcut dosyalara geriye uyumlu ekleme yap; bileşenleri/tasarımı baştan yaratma. Görsel iyileştirme ancak mevcut kimliği ve ekran akışını koruyorsa uygula. Kullanıcı verilerini hiçbir koşulda sessizce silme veya sıfırlama. İlk olarak ZIP'in tamamını oku, çalışan işlevleri belirle, regresyon testleri yaz ve dosya karşılaştırmasıyla korunduğunu doğrula.
+
+Üretim düzeyinde olmayan özelliğe 'tamamlandı' deme. Gerçek resmî veri çekme testi başarısızsa bunu belirt, sahte sonuç üretme. Kullanıcı hiçbir aşamada verilerin eksiksiz olduğu yanılgısına düşürülmesin. Geliştirme aşamaları arasında kullanıcıdan gereksiz yeniden onay istemeden mevcut dosyalar üzerinde ilerle.
+
+## 2. MEVCUT MİMARİ VE UYUMLULUK
+Mevcut V2: bağımsız HTML/CSS/JavaScript istemci, IndexedDB (zorunluysa localStorage yedeği), Service Worker, manifest, mobil PWA; Python FastAPI `server.py` ile aynı origin üzerinden `/api/sync`, `/api/official`, `/api/health`; sunucuda SQLite. Bu sistemi **yerinde ve geriye uyumlu** geliştir. Kullanıcıdan sıfırdan kurulum veya ekran değişikliği isteme. Statik dosyalar mevcut yapıyla çalışabilsin; fakat sadece statik barındırmada resmî otomatik veri çekilemeyeceği açıkça gösterilsin. Tarayıcının resmî siteye doğrudan istek atmasına güvenme: sonuçları arka uç çeksin, doğrulasın ve istemciye aktarsın.
+
+İleride PostgreSQL'e geçiş gerekiyorsa SQLAlchemy/Alembic veya eşdeğer migration ile veri kaybı olmadan geç; mevcut SQLite dosyasını taşıma ve yedekleme aracı oluştur. Mevcut uygulamanın kayıt biçimi ve oyun kodları (`sayisal`, `super`) korunmalı; veri şeması sürümlensin. Üretim için HTTPS, kalıcı disk/veritabanı, zamanlanmış iş ve gizli ortam değişkenleri sağla.
+
+## 3. TEK RESMÎ KAYNAK VE ERİŞİM POLİTİKASI
+Birincil ve yalnızca otomatik **resmî veri** kaynağı: `https://www.millipiyangoonline.com/`. Önce `https://www.millipiyangoonline.com/cekilis-takvimi`, ardından aynı resmî alan adındaki oyun sonuç sayfalarını, sayfalama ve tarih filtrelerini incele. Varsa **izinli resmî API veya yayımlanan dosya** tercih et. Web isteğinin yanıt kodu, tarih, içerik, kaynak URL, yönlendirme, robots/kullanım şartları, sıklık sınırları ve HTML şema değişikliklerini denetle.
+
+403, 429, CAPTCHA, bot engeli, oturum gereksinimi veya erişim kısıtlamasını **aşma**; proxy rotasyonu, CAPTCHA çözme, sahte oturum ya da izinsiz API kullanma. Kontrollü tekrar dene ve geri çekil; sorunu kaydet ve manuel/CSV/JSON içe aktarma imkânını koru. Resmî alan adı dışında otomatik sonuç toplayıp 'resmî doğrulanmış' etiketi verme. Erişilebilen birkaç sonucu bütün arşiv tamamlandı şeklinde sunma.
+
+## 4. HER AÇILIŞTA KONTROL + ARKA PLAN SENKRONİZASYONU
+Uygulama her açılışta ve çevrimiçi durumuna döndüğünde otomatik senkronizasyon **denemesi** başlatsın. Her girişte istek atılabilir, ancak sunucu oran sınırı/cooldown uygular; sunucu istemcinin her açılışında resmî siteye yüzlerce istek atmaz. Oyunun ikisini de kontrol et; önce veri tabanındaki son kayıtları göster, güncelliği ve işin durumunu açıkça göster. 'Şimdi kontrol et' düğmesi olsun, fakat yönetimsel tam geçmiş taramasını herkes başlatamasın.
+
+Tarayıcı kapalıyken yeni sonuçları incelemek için **sunucu zamanlayıcısı/cron** çalışsın. Sunucu işlemleri tekilleştirilsin (aynı oyuna paralel tarama olmasın). 200 başarılı ama veri bulunamadı, erişim engellendi, biçim değişti ve yeni kayıt eklendi durumları ayrı raporlansın. `last_checked_at` ve `last_successful_verified_at` ayrı tutulmalı. Cihaz çevrimdışıyken eski kayıtlar kullanılabilir, ancak güncelmiş gibi gösterilmez.
+
+## 5. BÜTÜN TARİHSEL ÇEKİLİŞLERİ KONTROLLÜ TAMAMLAMA
+**Yalnızca en son sekiz tahmini çekiliş numarasını denemek yeterli değildir.** Sayısal ve Süper Loto için resmî kaynakların sunduğu doğrulanabilir yıl, tarih, sonuç bağlantıları ve çekiliş numaralarından bir **keşif indeksi** oluştur. Tahmini çekiliş numarasını kesin çekiliş kabul etme. Oyunların tarihsel kurallarını ve başlangıç tarihlerini kaynakla doğrula. Yıl/dönem bazında tarama kuyruğu, sayfalama, devam etme işaretçisi, eksik kayıt raporu, istek hız sınırı, kısa partiler ve duraklat/yeniden başlat desteği ekle.
+
+Her gerçek çekiliş için benzersiz anahtar `(oyun, kural sürümü/yıl, çekiliş numarası)` gibi belgelenmiş ve çakışmasız olmalı. Çekiliş kimliklerinin yıllara göre tekrar kullanılabileceğini dikkate al. Tarama kapsamını: keşfedilen çekiliş adedi, doğrulananlar, manuel kayıtlar, ulaşılamayanlar, şüpheliler ve taranmamış dönemler şeklinde raporla. 'Tüm çekilişler tamamlandı' yalnızca bağımsız ve doğrulanabilir kapsam kontrolüyle gösterilsin.
+
+## 6. VERİ DOĞRULAMA VE TARİHSEL KURALLAR
+Resmî sayfadan alınan çekilişin oyun türü, tarih, gerçek çekiliş numarası ve **tam altı farklı ana sayı** bulunduğunu doğrula. Çılgın Sayısal Loto'nun güncel ana sayıları 1–90, Süper Loto'nun güncel ana sayıları 1–60 aralığında; tarihsel kural değişikliklerinde o dönemin kurallarını uygula. Sayısal Loto sayfasındaki Joker/SüperStar gibi ek sonuçları ana altı sayıdan ayrı alanlarda sakla; ana altılıyı ayırt edemiyorsan sonuçları reddet/karantinaya al. Kaynak HTML değişikliklerinde yanlış altılı tahmin etme.
+
+Her kayda oyun, yıl, çekiliş no, tarih, altı ana sayı, varsa ek sayılar, kaynak URL, indirildiği ve doğrulandığı zaman, kaynak içerik özeti/hash'i, doğrulama yöntemi ve durumunu ekle. 'Resmî siteden otomatik doğrulandı', 'Kullanıcı girdi', 'Dosyadan içe aktarıldı', 'Resmî kayıtla çelişiyor', 'Doğrulanamadı' gibi ayrı etiketler kullan.
+
+## 7. ELLE GİRİŞ, CSV/JSON VE VERİ KORUMA
+Otomatik alınamayan çekilişler kullanıcı tarafından oyun, tarih, çekiliş numarası, altı sayı ve isteğe bağlı kaynak/not ile kaydedilebilsin; cihazda **kalıcı kalsın**. Sayı aralığı, tekrarlanan sayı ve geçersiz tarih engellensin. Otomatik senkronizasyon **hiçbir manuel kaydı sessizce değiştirmesin/silmesin**. Aynı çekilişin resmî sonucu birebir uyarsa manuel kayıt, kaynağı koruyan doğrulama geçmişiyle eşleştirilsin. Farklıysa iki sürüm de/audit geçmişi korunup açık uyuşmazlık ekranında kullanıcıya gösterilsin; resmî ve manuel değer ayrı ayrı görülebilsin.
+
+İçe aktarma varsayılanı 'güvenli birleştir' olsun; 'mevcut verileri değiştir' seçeneği ancak açıklamalı, iki aşamalı onay, otomatik ön-yedek ve geri alma imkânıyla kullanılsın. İçe aktarılan veriye otomatik olarak `official_verified` verme; resmî kaynak yeniden doğrulamadıkça statüsünü yükseltme. CSV, JSON yedek alma/geri yükleme, sürüm uyumluluğu ve veri bütünlüğü testlerini ekle. IndexedDB ile sunucu veritabanının hangisinin hangi verinin otoritesi olduğu net belgelensin; cihaz değiştirirken manuel verinin nasıl taşındığı açık olsun.
+
+## 8. VERİTABANI TASARIMI VE MIGRATION
+Oyunlar/KuralSürümleri, Çekilişler, ÇekilişSayıları, KaynakKontrolleri, Senkronizasyonİşleri, EksikÇekilişler, ManuelKayıtlar, VeriÇatışmaları, AnalizÇalışmaları, TahminGrupları, Tahminler, BacktestÇalışmaları ve BacktestTahminleri tablolarını kur; eski Games, Draws, DrawNumbers, SyncJobs, AnalysisRuns, PredictionSets, Predictions, BacktestRuns, BacktestPredictions modelini geriye uyumlu biçimde kapsa. FK, benzersizlik, indeks, şema sürümü, kayıt zamanı, algoritma sürümü, parametreler ve rastgelelik tohumu saklansın. Sunucu yedeği ve geri yükleme prosedürünü test et. Mevcut SQLite verilerinden PostgreSQL'e güvenli migration hazırla; geçiş zorunluysa veriyi koruyarak gerçekleştir.
+
+## 9. TÜM SAYILAR İÇİN FREKANS ANALİZİ
+İki oyunun verilerini ASLA birbirine karıştırma. Seçili tarih aralığı ve doğrulama filtreleriyle her 1–90 / 1–60 sayısı için toplam görülme, görülme oranı, beklenen görülme oranı, son tarih, kaç çekiliştir görülmediği, son 10/25/50/100/250 çekilişte sıklık, tüm geçmiş-yakın dönem farkını hesapla. Hiç görülmeyen sayıları da tabloda göster. Varsayılan ana analiz yalnızca resmî doğrulanan veriyi kapsasın; kullanıcı verisini katma seçeneği varsa sonuçları ayrı ve net etiketle. Yetersiz örneklem/eksik dönem uyarısı göster.
+
+## 10. GELİŞMİŞ SAYI, ÇİFT VE ÜÇLÜ ANALİZİ
+Tek/çift, düşük/yüksek (kullanıcı tanımlı eşik), sayı toplamı, minimum/maksimum, aralık kapsama, ardışık sayılar, sayılar arası farklar, tekrar eden sayılar, tüm ikili/üçlü ortak görülme sayısı ve beklenen değere göre karşılaştırmalar yap. Frekans sıralaması, çift/üçlü filtreleri ve örneklem sayısı göster. Gerekli durumlarda ki-kare/Monte Carlo testleri, etki büyüklüğü, güven aralığı ve çoklu karşılaştırma düzeltmesini kullan. Rastgele dalgalanmayı istatistiksel üstünlük diye pazarlama.
+
+## 11. KOMBİNASYON OLUŞTURUCU — 8 STRATEJİ
+Mevcut sekiz stratejiyi ve ekranını koru: (1) rastgele, (2) tüm geçmiş frekansı, (3) yakın dönem ağırlıklı, (4) tek/çift, (5) düşük/yüksek, (6) toplam/aralık, (7) birlikte görülme, (8) hibrit. Güncel oyun kuralına uygun altı benzersiz sayı, kullanıcı seçimiyle çoklu benzersiz kolon, kayıt, kopyalama ve dışa aktarma işlevleri olsun. Stratejinin dayandığı örneklem, parametre, analiz tarihi, algoritma sürümü ve tohum kaydedilsin. Veri azsa frekans temelli stratejilerin sınırlarını belirt. Puan varsa 'kazanma olasılığı değildir' ibaresi ekle. Adil ve bağımsız çekilişlerde her geçerli altılının eşit şansa sahip olduğu her zaman doğru belirtilsin.
+
+## 12. GERİYE DÖNÜK TEST — VERİ SIZINTISIZ
+Gerçek kronolojik backtest motoru oluştur. Her hedef çekilişin tahmini yalnızca hedef tarihten **önceki** doğrulanmış çekilişleri kullanmalı. Test dönemine ait sonuçlarla parametreleri optimize etme. Eşit kolon sayısı/eşit koşullu rastgele temel modelle karşılaştır. 0–6 eşleşme dağılımı, ortalama eşleşme, dönemsel sonuçlar, örneklem, belirsizlik ve uygun istatistiksel anlamlılığı göster. Başarılı değilse açıkça söyle. Veri yetersizse backtesti sonuç varmış gibi gösterme. Tarih sızıntısı için otomatik test yaz.
+
+## 13. MOBİL ARAYÜZ — TASARIMI DEĞİŞTİRME
+Mevcut V2'nin ekran yerleşimini, navigasyonunu, mevcut başlıklarını ve açık/koyu görünümünü mümkün olduğunca aynı bırak. Şunları mevcut ilgili ekranların İÇİNE küçük, uyumlu bölümler halinde ekle: 'Otomatik kontrol edildi / bağlantı yok', 'Son başarılı resmî veri', 'Arşiv kapsamı', 'Eksik çekilişler', 'Uyuşmazlıklar', 'Manuel çekiliş ekle', 'Tüm sayılar karşılaştırması', 'Performans karşılaştırması'. Mobil erişilebilirlik, dokunma alanları, ekran okuyucu etiketleri ve yükleniyor/boş/hata durumlarını geliştir. Logo/renk sistemi veya menü düzenini izinsiz yeniden tasarlama.
+
+## 14. PWA VE ÇEVRİMDIŞI
+Manifest, mevcut ikonlar, Service Worker ve IndexedDB'yi koru. Uygulama çevrimdışıyken açılabilsin, son kaydedilen çekilişleri/analizleri/kolonları gösterebilsin. Veriye 'son doğrulanma tarihi' iliştir. Gizli veya yönetici API sonuçlarını cache'e alma. Güncelleme sırasında kullanıcı kayıtlarını sıfırlama. İlk yükleme/kurulumda HTTPS ve tarayıcı kısıtlarını açıkça göster. iOS ve Android kurulum farkları belgelensin; kontrollü çevrimiçi yeniden eşitleme olsun.
+
+## 15. BİLDİRİMLER
+Kullanıcı izin verirse yeni resmî çekiliş doğrulandığında aynı sonucu tekrarsız bildirme. Push için uygun Web Push servis/subscription ve sunucu bileşeni oluştur; yapılandırma eksikse bildirim özelliğini kapalı/kurulum gerekli göster. Kullanıcı izni vermeden isteme. Pazarlama veya oynama yönünde baskı içermesin.
+
+## 16. API, GÜVENLİK VE İZLEME
+Mevcut `/api/health`, `/api/sync`, `/api/official` uç noktaları bozulmayacak. İhtiyaca göre `GET /api/games`, `/api/draws`, `/api/draws/latest`, `/api/draws/{id}`, `/api/analytics/frequency`, `/api/analytics/distribution`, `/api/analytics/cooccurrence`, `POST /api/predictions/generate`, `GET /api/predictions`, `POST /api/backtests/run`, `GET /api/backtests`, `GET /api/sync/status`, `POST /api/import/csv` ekle. Parametre/kayıt doğrulama, filtreleme, sayfalama, anlaşılır hata yanıtı, hız sınırı ve OpenAPI şeması sağla. Tam arşiv taraması, manuel sunucu içe aktarma ve push yönetimi gibi işlemleri yetkisiz herkese açma. `/api/sync` GET endpoint'i tarama işini tetiklediği için korunmalı/cooldown'lu olmalı; tercihen halka açık GET sadece durum okumalı, tetikleme güvenli sunucu işi olmalı. HTTPS, secret yönetimi, XSS, CSRF, SQL injection, log gizliliği ve kaynağa yöneltilen SSRF risklerini denetle; kaynak host sabit ve izinli olsun. SyncJobs, başarı/hata kayıtları ve yapı değişikliği uyarıları tut.
+
+## 17. PERFORMANS, KULLANILABİLİRLİK VE SINIRLAR
+Büyük geçmiş arşivini parti parti tara ve veritabanına idempotent yaz. Analizleri önbelleğe al, yeni çekilişle ilgili analizleri geçersiz kıl. Mobilde sayfalama, filtreleme, hesaplama sırasında yükleme göstergesi, zaman aşımı ve işlem iptali olsun. Kaynak kesilince uygulama kilitlenmesin. Yalnızca erişilebilir/izinli veri üzerinden ilerle; gerekli yerde manuel dosya kabul et.
+
+## 18. TESTLER VE KABUL KRİTERLERİ
+Pytest, uygun JS testleri ve mümkünse Playwright ile şu kontrolleri çalıştır: mevcut menü ve ekranlar değişmemiş; kullanıcı kayıtları sürüm yükseltince korunuyor; manuel çekiliş eklenip yeniden açınca duruyor; import varsayılanı güvenli birleştirme; otomatik sonuç manueli silmiyor; uyuşmazlık tespit ediliyor; yinelenen çekiliş oluşmuyor; hatalı tarihler/sayılar reddediliyor; Joker/SüperStar ana sayı değil; tarihsel kurallar uygulanıyor; iki oyun karışmıyor; tüm sayılar 1..N aralığında raporlanıyor; tarih filtresi, çift/üçlü hesapları doğru; sekiz strateji geçerli/benzersiz kombinasyon üretiyor; backtest geleceği kullanmıyor; 403/429/CAPTCHA ve HTML değişikliğinde başarısızlık doğru gösteriliyor; çevrimdışı veri korunuyor; manifest ve service worker geçerli; masaüstü/Android boyutlarında UI bozulmuyor; API yetki/rate limiting var.
+
+Dış kaynağa erişim mümkün değilse sentetik fikstürlerle birim testlerini çalıştır ama bunları canlı entegrasyon testi diye gösterme. **Kabul koşulu:** çalışan kod + doğrulanabilir test çıktısı + gerçek bağlantı testi durum raporu + korunmuş veriler + tasarım regresyon kontrolü. 'Tam geçmiş arşiv' ancak gerçek kapsam doğrulamasıyla kabul edilebilir.
+
+## 19. GELİŞTİRME SIRASI, TESLİMAT VE RAPORLAMA
+Aşama 1: V2 ZIP'i aç, dosya/ekran/veri formatı envanteri ve yedek al.
+Aşama 2: Resmî kaynak erişilebilirliğini ve kurallarını test et; erişim raporu yaz.
+Aşama 3: Otomatik çekiliş keşfi, geçmiş dönem tarama kuyruğu, doğrulama ve eksik çekiliş sistemi kur.
+Aşama 4: Manuel kayıtları koruyan güvenli eşleştirme, uyuşmazlık ve içe aktarma/geri alma geliştir.
+Aşama 5: Veritabanı/migration, periyodik sunucu işi ve API'yi tamamla.
+Aşama 6: Tüm sayılar, ikililer, üçlüler, istatistik ve filtreleri ekle.
+Aşama 7: Sekiz stratejiyi doğrula; gerçek kronolojik backtest oluştur.
+Aşama 8: Mevcut ekranlara minimum müdahale ile durum/kapsam/analiz/performans bölümleri ekle.
+Aşama 9: PWA, offline, isteğe bağlı bildirimler, yetki, güvenlik ve otomatik testleri tamamla.
+Aşama 10: HTTPS için dağıtım paketini ve kullanım talimatlarını oluştur.
+
+Her aşamada: değiştirilmiş dosyalar, korunan özellikler, gerçekleştirilen testler, başarılı/başarısız kontroller, veriye erişim durumu ve bilinen eksikler raporlanmalı. V2 ile fark raporu üret. Son teslim **çalışır ZIP** içermeli: istemci kaynakları, backend, `requirements.txt`, `.env.example`, migration/taşıma araçları, README/KURULUM, veri kaynak raporu, testler ve sonuçları, API dokümanı, güvenli yedekleme/geri yükleme talimatı ve dağıtım rehberi. Test edilmemiş entegrasyonu tamamlanmış gösterme.
+
+### DEĞİŞTİRİLEMEZ SON KURALLAR
+- **Görsel yapı/menü/marka korunacak; kullanıcı veri kaybı olmayacak.**
+- **Her girişte otomatik kontrol denemesi yapılacak; erişilebilir sonuçlar kalıcı kaydedilecek.**
+- **Erişilemeyen sonuçlar elle girilebilecek ve sonraki girişlerde kalacak.**
+- **Resmî ve kullanıcı kayıtları kaynağıyla ayırt edilecek; çatışma asla sessizce ezilmeyecek.**
+- **Tüm erişilebilir tarihsel sonuçlar kademeli taranacak; taranamayanlar açıkça raporlanacak.**
+- **Bütün sayılar karşılaştırılacak, analizin kapsamı ve veri kalitesi görülecek.**
+- **Çekiliş sonuçları önceden kesin tahmin edilemez; herhangi bir kombinasyona sahte kazanma avantajı atfedilmeyecek.**
+- **Engeller aşılmayacak; teknik olarak başarılamayanlar dürüstçe açıklanacak.**
+
+Şimdi öncelikle mevcut V2 ZIP'ini incele, güvenli yedek al, ekranların/kayıtların regresyon testini oluştur ve resmî kaynak doğrulamasından başlayarak yukarıdaki aşamaları gerçekten kodlayıp test et. Yalnızca yapılacaklar listesi veya maket sunma.
+
+
+========================================================================
+DOSYA: readme.md
+BYTES: 4752
+SHA256: a4ba7bc4520d11c5d6dddadcb44ce386d5962720e63d44f5c9616448a8b0ff83
+========================================================================
+# LotoAnaliz AI — Nihai Test Paketi (V4)
+
+Bu sürüm V3'ün HTML/CSS arayüzünü **değiştirmeden** geliştirilmiştir. Kurulabilir PWA, kayıtlı çekilişler, manuel veri girişi, yerel yedekleme, analiz ve kolon üretimi korunur.
+
+## Bilgisayarda çalıştırma
+
+Python 3.11+ kurulu olmalı. ZIP'i açıp klasör içinde:
+
+```bash
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# Linux/macOS:
+# source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn server:app --host 127.0.0.1 --port 8000
+```
+
+Tarayıcıda http://127.0.0.1:8000 açın. API için http://127.0.0.1:8000/docs ve http://127.0.0.1:8000/api/health adreslerine bakın. Windows'ta Python komutu yerine `py` kullanılabilir.
+
+## Test
+
+```bash
+pip install pytest httpx
+python -m pytest -q
+node --check app.js
+```
+
+Ana ekrandan oyun değiştirin, Arşiv'e manuel çekiliş ekleyin, Analiz'e bakın, Üret'te kolon oluşturun, Diğer bölümünden JSON yedeği alın ve geri yükleyin. `/api/coverage?game=super` ile sunucudaki doğrulanmış sonuç sayısını inceleyin. İnternet erişimi yoksa eski verilerin hâlâ görüntülendiğini test edin.
+
+## Otomatik veri ve tarihsel tarama
+
+Uygulama her açılışta iki oyunu kontrol etmeyi dener; sunucu 20 dakikalık önbellek kullanır. Otomatik kontrol son çekilişler için **sınırlı adayları** dener, resmî site erişimi kesilirse kaydı doğrulanmış gibi göstermez. Geçmişe yönelik tarama için yönetici anahtarı ile `GET /api/admin/history/scan?game=super&year=2026&start=1&batch=3` kullanılabilir. Tarama kotalarına, yayıncının kullanım koşullarına ve erişim engellerine uyun.
+
+Arşivdeki manuel kayıtlar cihazda kalır. Otomatik aktarım çatışma gördüğünde kullanıcı girişinin üstüne yazmaz. JSON yedeğini düzenli alın. CSV'nin yönetici API'siyle yüklenmesi resmî olarak doğrulanmış kayda dönüşmez.
+
+## Üretim dağıtımı
+
+`docker compose` üzerinden tek konteyner + kalıcı disk ile çalıştırabilirsiniz. `.env` dosyanıza uzun ve rastgele bir `LOTO_ADMIN_KEY` yazın (`.env.example` örneğine bakın). Docker Compose portu yalnızca `127.0.0.1:8000` adresine açar; dış erişim için Caddy/nginx gibi HTTPS ters proxy gereklidir. HTTPS alan adı kullanıldığında telefona PWA kurulumu mümkündür. Yönetici anahtarını tarayıcıya gömmeyin. Tek işçi ile zamanlayıcı yalnızca `LOTO_ENABLE_SCHEDULER=1` ise aktiftir. Bu paket tek konteyner, kalıcı SQLite tabanlı kurulum içindir.
+
+## Uç noktalar
+
+`/api/games`, `/api/draws`, `/api/draws/latest`, `/api/draws/export.csv`, `/api/analytics/frequency`, `/api/analytics/distribution`, `/api/analytics/cooccurrence`, `/api/predictions/generate`, `/api/backtests/run`, `/api/backtests`, `/api/sync`, `/api/sync/status`, `/api/coverage`, `/api/official`, `/api/import/csv` (yönetici), `/api/imports/unverified` (yönetici), `/api/admin/history/scan` (yönetici).
+
+## Önemli sınırlamalar
+
+Canlı resmî veri akışı bu çalışma ortamından doğrulanamadı. Mevcut veri arşivi eksiksiz değil. PostgreSQL migration, push bildirimleri, çapraz cihaz senkronizasyonu ve iOS/Android cihaz testleri bu teslimatta yok. Bunlar için `TAMAMLANMA_KONTROL_LISTESI.md` ve `PRODUCTION_LIMITATIONS.md` dosyalarını inceleyin. Üretilen kolonlar kazanma ihtimalini artırmaz.
+
+## V8 eklemeleri — 22 Ekim 2026
+
+Windows üzerinde `start-windows.bat` dosyasına çift tıklayabilirsiniz. Ardından `http://127.0.0.1:8000` ve `http://127.0.0.1:8000/docs` adreslerini açın. Yönetici anahtarını ortam değişkenine atamadan yetkili tarama API'si çalışmaz. İnternetten erişmek için bir alan adı ve HTTPS ters proxy gerekir (`Caddyfile.example` örnektir).
+
+Yeni API uç noktaları:
+- `/api/analytics/significance?game=super` — örneklem yeterliyse Monte Carlo istatistiksel sapma testi.
+- `/api/analytics/details?game=sayisal` — sayı farkı, minimum/maksimum ve aralık istatistikleri.
+- `/api/admin/history/progress?game=super&year=2026` — yetkili tarama imleci.
+- `/api/admin/history/resume?game=super&year=2026&batch=3` — yetkili kontrollü taramayı kaldığı yerden sürdürme.
+
+Yeni `test_v8.py` ile toplam **19 pytest** testi başarılı. `KULLANICI_TEST_PLANI.md` manuel kontrol adımlarını içerir. `TAMAMLANMA_KONTROL_LISTESI.md` tamamlanan ve eksik kalan gereksinimleri açıkça ayırır.
+
+**Sınırlama:** Bu ZIP, ismi V8 olsa da tam resmî arşivi ve üretim dağıtımını içeren bitmiş ürün değildir. Bu çalışma ortamında `www.millipiyangoonline.com` doğrudan DNS bağlantısı başarısız oldu. Site engelleri aşılmadı; gerçek arşiv verisi üretilmedi. Gerçek Web Push, PostgreSQL, canlı HTTPS dağıtım, Android/iOS cihaz testi yapılmadı.
+
+
+========================================================================
+DOSYA: requirements.txt
+BYTES: 104
+SHA256: 5656472c76f5f345055b6a71941a820197c4078ca79ccd0a513b1575dc822c0c
+========================================================================
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+requests>=2.32,<3
+beautifulsoup4>=4.12,<5
+python-multipart>=0.0.9,<1
+
+
+========================================================================
+DOSYA: server.py
+BYTES: 13577
+SHA256: 4065eb0476b6b9bca161beb9ae53a390ef2b6ae14cc9de2454dcd8b70ffc18cd
+========================================================================
+"""LotoAnaliz AI: same-origin PWA plus cautious official-results checker.
+No access controls are bypassed; requests which fail remain unverified.
+"""
+from __future__ import annotations
+import json, logging, os, re, sqlite3, time, hmac, threading
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
+from urllib.parse import urlparse
+import requests
+from bs4 import BeautifulSoup
+from fastapi import FastAPI, HTTPException, Query, Header, Request
+from extended_api import router as extended_router
+import extended_api
+from fastapi.staticfiles import StaticFiles
+
+ROOT=Path(__file__).resolve().parent
+DB=Path(os.environ.get('LOTO_DB_PATH',str(ROOT/'official_results.sqlite3')))
+extended_api.DB_PATH=str(DB)
+HOST='https://www.millipiyangoonline.com'
+GAMES={'sayisal':('sayisal-loto',90), 'super':('super-loto',60)}
+MONTHS={'ocak':1,'şubat':2,'mart':3,'nisan':4,'mayıs':5,'haziran':6,'temmuz':7,'ağustos':8,'eylül':9,'ekim':10,'kasım':11,'aralık':12}
+app=FastAPI(title='LotoAnaliz AI — Resmî sonuç kontrol servisi',version='2.0')
+logging.basicConfig(level=logging.INFO)
+
+def connect():
+    db=sqlite3.connect(DB,timeout=10)
+    db.execute('CREATE TABLE IF NOT EXISTS results (game TEXT NOT NULL, year INTEGER NOT NULL, draw_number INTEGER NOT NULL, draw_date TEXT NOT NULL, numbers TEXT NOT NULL, source_url TEXT NOT NULL, fetched_at TEXT NOT NULL, PRIMARY KEY(game,year,draw_number))')
+    db.execute('CREATE TABLE IF NOT EXISTS checks (game TEXT PRIMARY KEY, checked_at REAL NOT NULL, status TEXT NOT NULL, message TEXT NOT NULL)')
+    db.execute('CREATE TABLE IF NOT EXISTS sync_jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT NOT NULL, year INTEGER, started_at TEXT NOT NULL, finished_at TEXT, checked INTEGER DEFAULT 0, inserted INTEGER DEFAULT 0, rejected INTEGER DEFAULT 0, status TEXT NOT NULL, cursor INTEGER DEFAULT 1, message TEXT DEFAULT "")')
+    db.execute('CREATE TABLE IF NOT EXISTS backtest_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT NOT NULL, strategy TEXT NOT NULL, created_at TEXT NOT NULL, parameters TEXT NOT NULL, report TEXT NOT NULL)')
+    db.execute('CREATE TABLE IF NOT EXISTS imports (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT NOT NULL, imported_at TEXT NOT NULL, count INTEGER NOT NULL, original_name TEXT NOT NULL, source_type TEXT NOT NULL)')
+    db.execute('CREATE TABLE IF NOT EXISTS rejects (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT NOT NULL, year INTEGER, draw_number INTEGER, reason TEXT NOT NULL, checked_at TEXT NOT NULL, UNIQUE(game,year,draw_number))')
+    db.execute('PRAGMA journal_mode=WAL')
+    return db
+
+def parse_result(html,game,year,number,url):
+    soup=BeautifulSoup(html,'html.parser')
+    if '{{#each' in html or '{{this}}' in html:
+        raise ValueError('Resmî HTML sonuç sayıları yerine işlenmemiş şablon içeriyor')
+    # Require an actual results heading and explicit draw number to avoid parsing adverts.
+    heading=next((h.get_text(' ',strip=True) for h in soup.find_all(['h1','h2']) if 'Sonuçları' in h.get_text(' ',strip=True) and ('Süper Loto' if game=='super' else 'Sayısal Loto') in h.get_text(' ',strip=True)),None)
+    if not heading: raise ValueError('Beklenen çekiliş başlığı yok')
+    pat=re.search(r'(\d{1,2})\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)\s+(\d{4})',heading)
+    if not pat: raise ValueError('Başlıktan tarih okunamadı')
+    mon=MONTHS.get(pat.group(2).casefold())
+    if not mon: raise ValueError('Bilinmeyen ay')
+    when=date(int(pat.group(3)),mon,int(pat.group(1)))
+    if when.year!=year or when>date.today(): raise ValueError('Çekiliş tarihi uyuşmuyor')
+    text=soup.get_text('\n',strip=True)
+    no=re.search(r'Çekiliş\s*no\s*:\s*(\d+)',text,re.I)
+    if not no or int(no.group(1))!=number: raise ValueError('Çekiliş numarası uyuşmuyor')
+    label=next((tag for tag in soup.find_all(['h2','h3','h4']) if 'Kazanan Numaralar' in tag.get_text(' ',strip=True)),None)
+    if label:
+        chunks=[]
+        for node in label.next_elements:
+            if getattr(node,'name',None) in ('h1','h2','h3','h4') and node is not label:break
+            if isinstance(node,str):
+                s=node.strip()
+                if s:chunks.append(s)
+            if len(chunks)>70:break
+        number_text=' '.join(chunks)
+    else:
+        split=re.split(r'Kazanan Numaralar',text,maxsplit=1)
+        number_text=split[1].split('Kazanan Kategoriler')[0] if len(split)>1 else ''
+    number_text=number_text.split('Kazanan Kategoriler')[0]
+    # Only isolated number elements count.  Additional Joker/SuperStar numbers are excluded.
+    pieces=re.findall(r'(?<!\d)\b\d{1,2}\b(?!\d)',number_text)
+    expected=8 if game=='sayisal' else 6
+    if len(pieces)!=expected: raise ValueError(f'Ana ve ek sayılar kesin olarak ayrılamadı ({len(pieces)} aday; beklenen {expected})')
+    nums=sorted(map(int,pieces[:6]))
+    if any(x<1 or x>GAMES[game][1] for x in nums) or len(set(nums))!=6:raise ValueError('Sayılar oyun kuralına uymuyor')
+    return {'game':game,'date':when.isoformat(),'drawNumber':str(number),'numbers':nums,'status':'official_verified','sourceUrl':url,'fetchedAt':datetime.now(timezone.utc).isoformat()}
+
+def expected_latest(game,now):
+    # Approximate draw number only for choosing probe candidates; never interpret missing numbers as actual draws.
+    # Scan within a conservative range, do not infer verified results from numbering.
+    start=date(now.year,1,1)
+    days=(now-start).days
+    return min(160,max(1,int(days*3/7)+3))
+
+def fetch_one(game,year,n):
+    slug,_=GAMES[game]
+    url=f'{HOST}/{slug}/cekilis-sonuclari.{n}.{year}'
+    r=requests.get(url,headers={'User-Agent':'LotoAnalizAI/2.0 (public results verification)'},timeout=9,allow_redirects=False)
+    if r.status_code!=200:raise ValueError(f'HTTP {r.status_code}')
+    if len(r.content)>3_000_000:raise ValueError('Beklenmeyen büyüklük')
+    return parse_result(r.text,game,year,n,url)
+
+def rows(db,game,limit):
+    return [{'game':g,'date':d,'drawNumber':str(n),'numbers':json.loads(nums),'status':'official_verified','sourceUrl':url,'fetchedAt':fetched} for g,d,n,nums,url,fetched in db.execute('SELECT game,draw_date,draw_number,numbers,source_url,fetched_at FROM results WHERE game=? ORDER BY draw_date DESC LIMIT ?', (game,limit))]
+
+@app.middleware('http')
+async def secure_headers(request:Request,call_next):
+    response=await call_next(request)
+    response.headers['X-Content-Type-Options']='nosniff'
+    response.headers['Referrer-Policy']='strict-origin-when-cross-origin'
+    response.headers['X-Frame-Options']='DENY'
+    response.headers['Permissions-Policy']='geolocation=(), microphone=(), camera=()'
+    if request.url.scheme=='https':
+        response.headers['Strict-Transport-Security']='max-age=31536000; includeSubDomains'
+    if request.url.path.startswith('/api/'):
+        response.headers['Cache-Control']='no-store'
+    return response
+
+@app.get('/api/health')
+def health():return {'ok':True,'service':'LotoAnaliz AI online results checker'}
+
+@app.get('/api/sync')
+def sync(game:str=Query('super')):
+    if game not in GAMES:raise HTTPException(400,'Bilinmeyen oyun')
+    with connect() as db:
+        old=db.execute('SELECT checked_at,status,message FROM checks WHERE game=?',(game,)).fetchone()
+        if old and time.time()-old[0]<1200:
+            return {'status':old[1],'message':old[2],'checkedAt':datetime.fromtimestamp(old[0],timezone.utc).isoformat(),'results':rows(db,game,500),'cached':True}
+        # At most 8 requests per game/check. Never probe a restricted site aggressively.
+        today=date.today();estimate=expected_latest(game,today)
+        existing={r[0] for r in db.execute('SELECT draw_number FROM results WHERE game=? AND year=?',(game,today.year))}
+        candidates=[n for n in range(max(1,estimate-5),estimate+3) if n not in existing][:8]
+        accepted=0;errors=[]
+        for n in candidates:
+            try:
+                res=fetch_one(game,today.year,n)
+                db.execute('INSERT OR IGNORE INTO results VALUES(?,?,?,?,?,?,?)',(game,today.year,n,res['date'],json.dumps(res['numbers']),res['sourceUrl'],res['fetchedAt']))
+                accepted+=1
+            except requests.RequestException as e:
+                errors.append('Resmî siteye ağ erişimi başarısız')
+                break
+            except ValueError as e:
+                errors.append(f'Çekiliş {n}: {str(e)}')
+                if '403' in str(e) or '429' in str(e):break
+        status='ok' if accepted else ('limited' if errors else 'no_new')
+        message=(f'{accepted} yeni resmî kayıt doğrulandı.' if accepted else 'Yeni doğrulanmış sonuç alınamadı.')
+        if errors:message+=' '+errors[0]
+        checked=time.time()
+        db.execute('INSERT INTO checks VALUES(?,?,?,?) ON CONFLICT(game) DO UPDATE SET checked_at=excluded.checked_at,status=excluded.status,message=excluded.message',(game,checked,status,message))
+        return {'status':status,'message':message,'checkedAt':datetime.fromtimestamp(checked,timezone.utc).isoformat(),'results':rows(db,game,500),'cached':False}
+
+@app.get('/api/admin/history/scan')
+def history_scan(game:str=Query('super'),year:int=Query(2026,ge=2020,le=2100),start:int=Query(1,ge=1,le=200),batch:int=Query(3,ge=1,le=10),x_admin_key:str|None=Header(None)):
+    """Operator-driven bounded historical scan; NOT proof of archive completeness."""
+    required=os.environ.get('LOTO_ADMIN_KEY')
+    if not required or not x_admin_key or not hmac.compare_digest(x_admin_key, required):raise HTTPException(403,'Yetkisiz işlem')
+    if game not in GAMES:raise HTTPException(400,'Geçersiz oyun')
+    checked=inserted=rejected=0;reason=''
+    with connect() as db:
+        job=db.execute('INSERT INTO sync_jobs (game,year,started_at,status,cursor) VALUES(?,?,?,?,?)',
+                       (game,year,datetime.now(timezone.utc).isoformat(),'running',start)).lastrowid
+        for n in range(start,min(start+batch,201)):
+            checked+=1
+            try:
+                item=fetch_one(game,year,n)
+                row=db.execute('INSERT OR IGNORE INTO results VALUES(?,?,?,?,?,?,?)',
+                               (game,year,n,item['date'],json.dumps(item['numbers']),item['sourceUrl'],item['fetchedAt']))
+                inserted+=row.rowcount
+            except (requests.RequestException, ValueError) as exc:
+                rejected+=1;reason=str(exc)[:250]
+                db.execute('INSERT INTO rejects(game,year,draw_number,reason,checked_at) VALUES(?,?,?,?,?) ON CONFLICT(game,year,draw_number) DO UPDATE SET reason=excluded.reason,checked_at=excluded.checked_at',
+                           (game,year,n,reason,datetime.now(timezone.utc).isoformat()))
+                if '403' in reason or '429' in reason or isinstance(exc,requests.RequestException):break
+            time.sleep(0.5)
+        db.execute('UPDATE sync_jobs SET finished_at=?,checked=?,inserted=?,rejected=?,status=?,cursor=?,message=? WHERE id=?',
+                   (datetime.now(timezone.utc).isoformat(),checked,inserted,rejected,'limited' if rejected else 'completed',start+checked,reason,job))
+    return {'game':game,'year':year,'checked':checked,'inserted':inserted,'rejected':rejected,'next_cursor':start+checked,'complete':False,'error':reason}
+
+@app.get('/api/admin/history/progress')
+def history_progress(game:str=Query('super'), year:int=Query(2026,ge=2020,le=2100),x_admin_key:str|None=Header(None)):
+    required=os.environ.get('LOTO_ADMIN_KEY')
+    if not required or not x_admin_key or not hmac.compare_digest(required,x_admin_key):
+        raise HTTPException(403,'Yetkisiz işlem')
+    if game not in GAMES:raise HTTPException(400,'Geçersiz oyun')
+    with connect() as db:
+        cur=db.execute('SELECT MAX(cursor) FROM sync_jobs WHERE game=? AND year=?',(game,year)).fetchone()[0]
+        n=db.execute('SELECT COUNT(*) FROM results WHERE game=? AND year=?',(game,year)).fetchone()[0]
+        rejects=db.execute('SELECT COUNT(*) FROM rejects WHERE game=? AND year=?',(game,year)).fetchone()[0]
+    return {'game':game,'year':year,'next_cursor':cur or 1,'verified_count':n,
+            'failed_candidates':rejects,'fully_verified':False}
+
+@app.get('/api/admin/history/resume')
+def history_resume(game:str=Query('super'),year:int=Query(2026,ge=2020,le=2100),batch:int=Query(3,ge=1,le=10),x_admin_key:str|None=Header(None)):
+    progress=history_progress(game,year,x_admin_key)
+    return history_scan(game,year,progress['next_cursor'],batch,x_admin_key)
+
+@app.get('/api/official')
+def official(game:str=Query('super'),limit:int=Query(500,ge=1,le=5000)):
+    if game not in GAMES:raise HTTPException(400,'Bilinmeyen oyun')
+    with connect() as db:return {'results':rows(db,game,limit)}
+
+app.include_router(extended_router)
+app.mount('/',StaticFiles(directory=str(ROOT),html=True),name='pwa')
+
+
+# Optional scheduled synchronization: enable only on dedicated single-worker deployment.
+# Public source is probed cautiously, with cooldown and no bypass of restrictions.
+def _scheduled_checks():
+    while True:
+        time.sleep(max(3600, int(os.environ.get('LOTO_SYNC_INTERVAL_SECONDS', '21600'))))
+        for name in ('sayisal', 'super'):
+            try:
+                sync(name)
+            except Exception as exc:
+                logging.warning('Scheduled sync failed for %s: %s', name, type(exc).__name__)
+
+@app.on_event('startup')
+def start_optional_scheduler():
+    if os.environ.get('LOTO_ENABLE_SCHEDULER')=='1':
+        threading.Thread(target=_scheduled_checks, daemon=True, name='loto-sync').start()
+
+
+========================================================================
+DOSYA: service-worker.js
+BYTES: 981
+SHA256: a3469f68c651b56108b12a95e10ebb1eb897f43e28fd6b65356690a38c269a53
+========================================================================
+'use strict';
+const CACHE='lotoanaliz-auto-db-v12';
+const FILES=['./','./index.html','./app.js','./style.css','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
+self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',e=>e.waitUntil((async()=>{await Promise.all((await caches.keys()).filter(k=>k.startsWith('lotoanaliz-')&&k!==CACHE).map(k=>caches.delete(k)));await self.clients.claim()})()));
+self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==self.location.origin||u.pathname.startsWith('/api/')||u.pathname.startsWith('/.netlify/functions/'))return;
+e.respondWith((async()=>{try{const r=await fetch(e.request);if(r.ok){const cache=await caches.open(CACHE);cache.put(e.request,r.clone());}return r}catch{return await caches.match(e.request)||await caches.match('./index.html')||Response.error()}})())});
+
+
+========================================================================
+DOSYA: start-windows.bat
+BYTES: 197
+SHA256: 996d779d0fde25f49c7af0922005d4d756b245e2731d35114c600b1766089aff
+========================================================================
+@echo off
+cd /d "%~dp0"
+where py >nul 2>&1
+if %errorlevel%==0 (set PY=py) else (set PY=python)
+%PY% -m pip install -r requirements.txt
+%PY% -m uvicorn server:app --host 127.0.0.1 --port 8000
+pause
+
+
+========================================================================
+DOSYA: start.sh
+BYTES: 87
+SHA256: 86f3466ad7449427bf182f4c95c48e7d18d5092208cc0e127aec1498c5cf56c8
+========================================================================
+#!/usr/bin/env sh
+set -e
+exec uvicorn server:app --host 0.0.0.0 --port "${PORT:-8000}"
+
+
+========================================================================
+DOSYA: style.css
+BYTES: 5937
+SHA256: 148a2efb43fa7ecd564aeded5fb1c67cf1e9b6e4150b11e1fc62649fb4e6f9e3
+========================================================================
+:root{--bg:#0d1322;--panel:#172134;--raised:#1d2b40;--line:#293a54;--text:#eef3fb;--muted:#94a7c1;--accent:#8b7cf6;--cyan:#50d0df;--green:#5ad5aa;--red:#fc8694;--shadow:#0003}*{box-sizing:border-box}body{margin:0;background:#090e19;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text)}body.light{--bg:#f3f6fc;--panel:#fff;--raised:#eef2f9;--line:#dfe7f3;--text:#1b2b44;--muted:#65748b;--accent:#6554d8;--cyan:#007c94;--green:#008264;--red:#c94558;--shadow:#273a5417;background:#e7edf7}.app{max-width:740px;min-height:100dvh;margin:auto;background:var(--bg);box-shadow:0 0 45px var(--shadow);padding-bottom:94px}.top{height:78px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:13px 18px;position:sticky;top:0;background:var(--bg);z-index:4}.brand{display:flex;gap:10px;align-items:center}.brand-mark{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#7a5cf4,#22b2db);display:grid;place-items:center;font-size:26px;color:white}.brand b{font-size:19px;letter-spacing:-.5px}.brand em{font-style:normal;color:var(--cyan)}.brand small{display:block;color:var(--muted);font-size:9px;letter-spacing:1.35px;margin-top:3px}.top-actions{display:flex;gap:9px;align-items:center}.pill{font-size:11px;border-radius:22px;padding:7px 10px;background:var(--raised);color:var(--green)}.pill.off{color:var(--red)}.icon-btn{border:1px solid var(--line);border-radius:11px;background:var(--raised);color:var(--text);font-size:21px;width:38px;height:38px;cursor:pointer}main{padding:20px 17px 30px}h1{font-size:26px;margin:0 0 7px;letter-spacing:-.8px}h2{font-size:17px;margin:0 0 14px}h3{font-size:15px;margin:0 0 9px}p{line-height:1.55}.muted,small{color:var(--muted)}.lead{color:var(--muted);margin:0 0 21px;font-size:13px}.card{background:var(--panel);border:1px solid var(--line);border-radius:19px;padding:17px;margin-bottom:14px;box-shadow:0 4px 16px #00000008}.hero{background:linear-gradient(135deg,#433d8e,#19627c);border:none;color:white}.hero .muted{color:#d7e6ff}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.row.wrap{flex-wrap:wrap}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.grid .card{margin:0}.kpi{font-size:26px;font-weight:800;line-height:1.3}.kpi-label{color:var(--muted);font-size:12px}.tag{font-size:11px;padding:5px 9px;border-radius:20px;background:var(--raised);color:var(--cyan)}.warn{background:#f8b3511c;color:#ecb05e;border:1px solid #ecb05e55;padding:12px 13px;border-radius:13px;font-size:12px;line-height:1.5;margin:14px 0}.success{color:var(--green)}.btn{font:inherit;cursor:pointer;background:var(--accent);color:white;border:0;border-radius:12px;padding:12px 14px;font-weight:700;font-size:13px}.btn.secondary{background:var(--raised);color:var(--text);border:1px solid var(--line)}.btn.danger{background:#a44257;color:white}.btn:disabled{opacity:.55;cursor:not-allowed}.btn.full{width:100%}.actions{display:flex;gap:9px;flex-wrap:wrap}.balls{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.ball{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:800;background:#e6eaff;color:#313a7b;font-size:14px}.ball.alt{background:#d8fff6;color:#065e63}.empty{text-align:center;padding:30px 16px;color:var(--muted);font-size:13px}.empty .emoji{font-size:33px;display:block;margin-bottom:9px}.field{display:flex;flex-direction:column;gap:6px;margin-bottom:13px;font-size:13px;font-weight:600}input,select,textarea{width:100%;background:var(--raised);border:1px solid var(--line);border-radius:11px;padding:12px;color:var(--text);font:inherit;min-height:43px}input[type=file]{font-size:12px}input:focus,select:focus,button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}label{color:var(--text)}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.mini{font-size:12px}.rule{height:1px;background:var(--line);margin:14px 0}.record{padding:13px 0;border-top:1px solid var(--line)}.record:first-of-type{border-top:0}.record-head{display:flex;gap:7px;justify-content:space-between;align-items:center}.barrow{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:12px}.barrow .n{width:25px;font-weight:700}.track{height:10px;flex:1;background:var(--raised);border-radius:20px;overflow:hidden}.fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--cyan));border-radius:20px}.barrow .count{width:30px;text-align:right;color:var(--muted)}.bottom{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:740px;display:flex;background:var(--panel);border-top:1px solid var(--line);padding:8px 5px calc(8px + env(safe-area-inset-bottom));z-index:6}.bottom button{flex:1;background:none;border:none;color:var(--muted);font-size:10px;display:flex;flex-direction:column;gap:5px;align-items:center;cursor:pointer;padding:5px 0}.bottom button span{font-size:24px}.bottom button.active{color:var(--cyan);font-weight:800}#toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:#282f47;border:1px solid #67749a;color:white;padding:10px 16px;max-width:min(94vw,650px);width:max-content;border-radius:12px;box-shadow:0 8px 25px #0005;display:none;font-size:12px;z-index:10}.mono{font-family:ui-monospace,monospace}.muted-box{padding:12px;border-radius:12px;background:var(--raised);color:var(--muted);font-size:12px}.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.section-head h2{margin:0}details{margin-bottom:12px}summary{cursor:pointer;font-weight:600}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:12px}td,th{padding:10px 6px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--muted)}.stat-number{color:var(--cyan);font-weight:800}@media(min-width:600px){main{padding:26px 28px}.grid.three{grid-template-columns:repeat(3,1fr)}.ball{width:41px;height:41px}}
+
+
+========================================================================
+DOSYA: supabase/001_initial.sql
+BYTES: 1303
+SHA256: fc71f940214c768f8752637c6ac6eb69dc832312269ae4cf6916f2e38c27edbe
+========================================================================
+-- SQL Editor içinde bir kere çalıştırın. Servis rolü anahtarını asla frontend'e koymayın.
+create table if not exists public.draws (
+ id bigint generated always as identity primary key,
+ game text not null check(game in ('sayisal','super','sans','onnumara')),
+ draw_date date not null,
+ draw_number text,
+ numbers jsonb not null,
+ extra integer,
+ source text not null,
+ source_url text,
+ verification text not null check(verification in ('official_verified','third_party_unverified','manual_unverified')),
+ checked_at timestamptz not null,
+ created_at timestamptz not null default now(),
+ updated_at timestamptz not null default now(),
+ unique(game,draw_date)
+);
+create unique index if not exists draws_game_drawnumber on public.draws(game,draw_number) where draw_number is not null;
+create table if not exists public.sync_logs (
+ id bigint generated always as identity primary key,
+ game text not null,
+ status text not null,
+ checked_at timestamptz not null default now(),
+ inserted integer not null default 0,
+ message text,
+ source_url text
+);
+create index if not exists sync_logs_recent on public.sync_logs(checked_at desc);
+alter table public.draws enable row level security;
+alter table public.sync_logs enable row level security;
+-- No anon policies: only backend service-role access.
+
+
+========================================================================
+DOSYA: tamamlanma_kontrol_listesi.md
+BYTES: 3118
+SHA256: 16fe18f77e7d79be269b5590c2093c3a9ca9e5d3be7c98dde94aac161d4ad85e
+========================================================================
+# LotoAnaliz AI — V8 Gereksinim Durumu (22.10.2026)
+
+Üstü çizilen maddeler **yalnızca kod ve uygun otomatik testlerle doğrulanan** işlevlerdir. Gerçek internet/telefon gerektiren testler ayrıca listelenir.
+
+## Mevcut mobil uygulama
+- [x] ~~V2/V3 mobil HTML, CSS ve navigasyon düzeninin korunması~~
+- [x] ~~Her açılışta iki oyun için aynı kaynaklı sunucuya güncelleme denemesi~~
+- [x] ~~Manuel çekiliş ekleme ve yerel veri koruma~~
+- [x] ~~Cihazda CSV/JSON yedekleme ve mevcut kayıtları koruyan içe aktarma~~
+- [x] ~~PWA manifest ve Service Worker~~
+- [ ] Android ve iOS gerçek cihaz kurulum, bildirim ve çevrimdışı kabul testleri
+
+## Veri doğrulama ve tarihsel sonuçlar
+- [x] ~~Her oyunda altı farklı ana sayının ve sayı aralığının doğrulanması~~
+- [x] ~~Ek joker/süperstar sayılarının altı ana sayıdan ayrılması (mevcut format)~~
+- [x] ~~Resmî sayfa uyuşmazlığı ve şablon hata kontrolü~~
+- [x] ~~Küçük partilerle yetkili tarihsel tarama, imleç, hata kaydı ve kaldığı yerden devam API'si~~
+- [x] ~~CSV yüklemelerini doğrulanmamış kayıt olarak ayırma~~
+- [ ] Resmî siteden gerçek sonuçların bu çalışma ortamında başarıyla çekilmesi
+- [ ] Resmî sitedeki **tüm geçmiş çekilişlerin** eksiksiz indirilip tek tek doğrulanması
+- [ ] Tarihsel oyun kuralı sürümleri ve bütün dönemler için parser doğrulaması
+- [ ] Bağımsız kaynak bazında arşiv tamlık ispatı
+
+## Analiz ve geriye dönük test
+- [x] ~~Frekans, son görülme, 10/25/50/100/250 dönemi~~
+- [x] ~~Tek/çift, düşük/yüksek, toplam ve ardışık analizleri~~
+- [x] ~~İkili/üçlü birlikte görülme~~
+- [x] ~~Tüm sekiz stratejiyle geçerli kolon oluşturma~~
+- [x] ~~Kronolojik geriye dönük test ve rastgele kıyaslama~~
+- [x] ~~Monte Carlo frekans sapması testi, gözlenen etki büyüklüğü ve p değeri API'si~~
+- [x] ~~Sayı farkı, min/max, onluk aralık kapsama analizi API'si~~
+- [ ] Çoklu karşılaştırmalar için tüm hipotez ailelerinde düzeltme, güven aralıkları ve dönemsel cross-validation
+- [ ] Tüm istatistik ve yönetim ekranlarının orijinal mobil arayüze tam entegre edilmesi
+
+## Sunucu ve dağıtım
+- [x] ~~FastAPI, REST uç noktaları ve /docs API dokümanı~~
+- [x] ~~Kalıcı SQLite veritabanı ve temel benzersizlik kontrolü~~
+- [x] ~~Yönetici anahtarı ile tarihsel tarama/CSV içe aktarma koruması~~
+- [x] ~~Docker dosyaları, yerel zamanlayıcı, güvenlik başlıkları~~
+- [x] ~~Otomatik pytest testleri (19 başarılı) ve JavaScript sözdizimi denetimi~~
+- [ ] PostgreSQL, migrasyonlar ve çok sunuculu senkronizasyon
+- [ ] Gerçek Web Push bildirimi ve abonelik/abonelik iptal yönetimi
+- [ ] Tam rate limiting, tehdit modeli, sızma testi ve yedek kurtarma tatbikatı
+- [ ] Gerçek HTTPS alan adı üzerinde canlı dağıtım ve uçtan uca cihaz testleri
+
+**Dürüst teslim durumu:** İşlevsel test sürümüdür; eksik maddeler nedeniyle eksiksiz üretim sürümü değildir. Resmî çekiliş sunucusuna doğrudan DNS erişimi bu ortamda başarısız olduğu için canlı veri çekme doğrulanamadı.
+
+
+========================================================================
+DOSYA: test_analysis_engine.py
+BYTES: 1885
+SHA256: 4959237d5a7eb8b6a0c261deb4505861cbe47df5c46a563d2d1da7e46dd996d9
+========================================================================
+from analysis_engine import validate, frequency,cooccurrence,backtest,generated
+import pytest, random
+
+def fake(game,count=45):
+    r=random.Random(20)
+    return [{'date':f'2026-{1+i//28:02d}-{1+i%28:02d}','numbers':sorted(r.sample(range(1,(90 if game=='sayisal' else 60)+1),6))} for i in range(count)]
+
+def test_validation():
+    assert validate('super',[2,1,6,5,4,3])==[1,2,3,4,5,6]
+    with pytest.raises(ValueError):validate('super',[1,1,2,3,4,5])
+    with pytest.raises(ValueError):validate('super',[1,2,3,4,5,61])
+
+def test_every_number_including_zeroes():
+    f=frequency('sayisal',[{'date':'2026-01-01','numbers':[1,2,3,4,5,6]}]);assert len(f)==90
+    assert f[0]['hits']==1 and f[-1]['hits']==0
+    assert f[0]['last_250']==1
+
+def test_pairs_triples():
+    d=[{'date':'2026-01-01','numbers':[1,2,3,4,5,6]},{'date':'2026-01-02','numbers':[1,2,3,7,8,9]}]
+    assert cooccurrence(d,2)[0]=={'numbers':[1,2],'hits':2}
+    assert cooccurrence(d,3)[0]=={'numbers':[1,2,3],'hits':2}
+
+def test_backtesting_and_reproducibility():
+    d=fake('super')
+    assert backtest('super',d,warmup=25)['tested_draws']==20
+    assert backtest('super',d,'hot',seed=13)==backtest('super',d,'hot',seed=13)
+    assert backtest('super',d[:4])['status']=='insufficient_data'
+
+def test_no_future_leakage():
+    d=fake('super')
+    a=backtest('super',d,'recent',warmup=25,seed=31)
+    changed=d+[{'date':'2027-01-01','numbers':[1,2,3,4,5,6]}]
+    b=backtest('super',changed,'recent',warmup=25,seed=31)
+    assert a['tested_draws']+1==b['tested_draws']
+    # Existing result distribution alone need not match after addition, but sequential engine uses history[:i] only.
+
+def test_strategies_valid():
+    for g in ('sayisal','super'):
+        for strategy in ('random','hot','recent','odd','low','sum','pairs','hybrid'):
+            x=generated(g,strategy,fake(g),random.Random(12));assert validate(g,x)==x
+
+
+========================================================================
+DOSYA: test_api_integration.py
+BYTES: 2381
+SHA256: 4120e32b472886e62c7bcaafe6536aa985581ce64495fbb73ca8e0ee11f02648
+========================================================================
+import json
+import pytest
+from fastapi.testclient import TestClient
+import server, extended_api
+
+@pytest.fixture
+def client(tmp_path,monkeypatch):
+    db=tmp_path/'test.sqlite'
+    monkeypatch.setattr(server,'DB',db)
+    monkeypatch.setattr(extended_api,'DB_PATH',str(db))
+    monkeypatch.setenv('LOTO_ADMIN_KEY','test_key_dont_use_in_production')
+    with server.connect() as conn:
+        conn.execute('INSERT INTO results VALUES(?,?,?,?,?,?,?)',('super',2026,1,'2026-01-01',json.dumps([1,2,3,4,5,6]),'https://www.millipiyangoonline.com/super-loto/test','2026-01-02T00:00:00+00:00'))
+    return TestClient(server.app)
+
+def test_health_and_draws(client):
+    assert client.get('/api/health').json()['ok']
+    r=client.get('/api/draws?game=super'); assert r.status_code==200 and r.json()['total']==1
+    assert client.get('/api/draws/latest?game=super').json()['result']['numbers']==[1,2,3,4,5,6]
+    assert client.get('/api/analytics/frequency?game=super').json()['numbers'][0]['hits']==1
+
+def test_export_and_backtests(client):
+    r=client.get('/api/draws/export.csv?game=super'); assert r.status_code==200 and 'drawNumber' in r.text
+    r=client.post('/api/backtests/run',json={'game':'super','strategy':'random','warmup':1,'count':1,'seed':14}); assert r.status_code==200
+    assert len(client.get('/api/backtests').json()['results'])==1
+
+def test_csv_import_is_unverified_and_admin_only(client):
+    csv=b'game,date,drawNumber,n1,n2,n3,n4,n5,n6\nsuper,2026-01-03,2,1,2,3,4,5,6\n'
+    unauth=client.post('/api/import/csv',files={'file':('sample.csv',csv,'text/csv')}); assert unauth.status_code==403
+    imported=client.post('/api/import/csv',files={'file':('sample.csv',csv,'text/csv')},headers={'x-admin-key':'test_key_dont_use_in_production'})
+    assert imported.status_code==200 and imported.json()['inserted']==1 and imported.json()['status']=='unverified'
+    assert client.get('/api/draws?game=super').json()['total']==1
+    assert len(client.get('/api/imports/unverified',headers={'x-admin-key':'test_key_dont_use_in_production'}).json()['results'])==1
+
+def test_admin_scan_protected(client):
+    assert client.get('/api/admin/history/scan?game=super&year=2026').status_code==403
+
+def test_invalid_game(client):
+    assert client.get('/api/draws?game=other').status_code==400
+    assert client.post('/api/predictions/generate',json={'game':'other'}).status_code==400
+
+
+========================================================================
+DOSYA: test_server.py
+BYTES: 889
+SHA256: 46ed7c23558581830a95fce0b2df4a212d66ba8f148625ded9282555dc459e51
+========================================================================
+from server import parse_result
+
+def mk(label,number,year,nums):
+    return f'<h1>22 Eylül {year} 18:30 {label} Sonuçları</h1><div>Çekiliş no: {number}</div><h2>Kazanan Numaralar</h2>'+''.join(f'<span>{n}</span>' for n in nums)+'<h2>Kazanan Kategoriler</h2>'
+
+def test_super():
+    p=parse_result(mk('Süper Loto',114,2026,[3,15,43,48,50,52]),'super',2026,114,'https://www.millipiyangoonline.com/x')
+    assert p['numbers']==[3,15,43,48,50,52]
+
+def test_sayisal_extra_excluded():
+    p=parse_result(mk('Sayısal Loto',101,2026,[1,5,22,30,40,81,67,73]),'sayisal',2026,101,'https://www.millipiyangoonline.com/x')
+    assert p['numbers']==[1,5,22,30,40,81]
+
+def test_reject_unexpected():
+    try:parse_result(mk('Süper Loto',114,2026,[3,15,43]),'super',2026,114,'https://www.millipiyangoonline.com/x')
+    except ValueError:pass
+    else:raise AssertionError('malformed draw accepted')
+
+
+========================================================================
+DOSYA: test_sonuclari.txt
+BYTES: 1026
+SHA256: be8cfc145241c4e6ff7f9a2d0a3161dffb69aa1378838725e97a7126b958c2f5
+========================================================================
+..............                                                           [100%]
+=============================== warnings summary ===============================
+server.py:172
+  /mnt/data/LotoAnaliz-AI-Final-Test/server.py:172: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event('startup')
+
+../../../opt/pyvenv/lib/python3.13/site-packages/fastapi/applications.py:4579
+  /opt/pyvenv/lib/python3.13/site-packages/fastapi/applications.py:4579: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+14 passed, 2 warnings in 0.47s
+
+
+========================================================================
+DOSYA: test_sync.mjs
+BYTES: 779
+SHA256: 8a89c763cf601f0db5c11fc2d6c0a6223fbce3781b6ec196d709968ef3b67228
+========================================================================
+import assert from 'node:assert/strict';
+import {handler,_test} from './netlify/functions/sync.mjs';
+const bad=await handler({queryStringParameters:{game:'wrong'}});
+assert.equal(bad.statusCode,400);
+assert.equal(JSON.parse(bad.body).results.length,0);
+const s={date:'2026-09-22',draw:'114',max:60};
+const html='<div>2026-09-22 "drawNumber":114 "winningNumber": [3,15,43,48,50,52]</div>';
+assert.deepEqual(_test.parseOfficial(html,s),[3,15,43,48,50,52]);
+assert.throws(()=>_test.parseOfficial(html.replace('52','15'),s));
+assert.throws(()=>_test.parseOfficial('{{#each winningNumber}} '+html,s));
+assert.throws(()=>_test.parseOfficial(html.replace('2026-09-22','2026-09-23'),s));
+assert.equal(_test.errClass({name:'AbortError'}),'timeout');
+console.log('6/6 sync tests passed');
+
+
+========================================================================
+DOSYA: test_v8.py
+BYTES: 1943
+SHA256: b9398271a3546ecefc551d68c016663f9c081cd501b311708962f2e797cb3426
+========================================================================
+import os, json, tempfile
+from fastapi.testclient import TestClient
+import extended_api, server
+from analysis_engine import significance,draw_details
+
+
+def samples(game='super', size=40):
+    mx=60 if game=='super' else 90
+    return [{'date':f'2026-02-{i%28+1:02}', 'numbers': sorted({((i*7+j*9)%mx)+1 for j in range(6)})} for i in range(size)]
+
+def test_significance_deterministic():
+    a=significance('super',samples(),200,42)
+    assert a==significance('super',samples(),200,42)
+    assert 0<a['p_value']<=1 and a['sample_size']==40
+
+def test_significance_not_enough_data():
+    assert significance('super',samples(size=4))['status']=='insufficient_data'
+
+def test_detail_counts():
+    r=draw_details('super',samples(size=6))
+    assert r['sample_size']==6
+    assert sum(r['gaps'].values())==30
+
+def test_protected_history_and_headers(monkeypatch,tmp_path):
+    monkeypatch.setenv('LOTO_ADMIN_KEY','long-test-admin-secret')
+    path=tmp_path/'v8.db'
+    monkeypatch.setattr(server,'DB',path)
+    monkeypatch.setattr(extended_api,'DB_PATH',str(path))
+    client=TestClient(server.app)
+    assert client.get('/api/admin/history/progress').status_code==403
+    r=client.get('/api/admin/history/progress',headers={'x-admin-key':'long-test-admin-secret'})
+    assert r.status_code==200 and r.json()['next_cursor']==1
+    assert r.headers['x-content-type-options']=='nosniff'
+    assert r.headers['cache-control']=='no-store'
+    assert client.get('/api/analytics/significance?game=super').json()['status']=='insufficient_data'
+    assert client.get('/api/analytics/details?game=super').json()['sample_size']==0
+
+
+def test_refuse_placeholder_template():
+    from server import parse_result
+    html='<h1>22 Eylül 2026 Süper Loto Sonuçları</h1><div>Çekiliş no: 114</div>{{#each balls}}'
+    try:
+        parse_result(html,'super',2026,114,'https://www.millipiyangoonline.com/xyz')
+        assert False
+    except ValueError:
+        pass
+
+
+========================================================================
+DOSYA: tests/core.test.mjs
+BYTES: 1020
+SHA256: 912cd8c6b24d160c56aa10bc2fcbb70d6704dc282c857746a250dce87ae7f4f8
+========================================================================
+import test from 'node:test';import assert from 'node:assert/strict';
+import {validate,parseCollect,fetchGame} from '../netlify/functions/_core.mjs';
+test('Sayısal Loto örneği resmî doğrulanmış sayılmaz',()=>{const r=parseCollect('sayisal',{tarih:'07.12.2019',rakamlar:'07 - 10 - 11 - 13 - 31 - 46'});assert.equal(r.verification,'third_party_unverified');assert.deepEqual(r.numbers,[7,10,11,13,31,46])});
+test('aynı sayı reddedilir',()=>assert.throws(()=>validate('super',{date:'2026-10-21',numbers:[1,1,2,3,4,5]})));
+test('Şans Topu ekstra sayısı zorunlu',()=>assert.throws(()=>validate('sans',{date:'2026-10-21',numbers:[1,2,3,4,5]})));
+test('On Numara 22 farklı sayı',()=>assert.equal(validate('onnumara',{date:'2026-10-21',numbers:Array.from({length:22},(_,i)=>i+1)}).numbers.length,22));
+test('Şans Topu ve On Numara: uydurma API bağlantısı kurulmaz',async()=>{assert.equal((await fetchGame('sans')).status,'not_configured');assert.equal((await fetchGame('onnumara')).status,'not_configured')});
+
+
+========================================================================
+DOSYA: tests/integration_contract.test.mjs
+BYTES: 1082
+SHA256: 89960827f8f85e0eebcd85a0be8740f2b5163d4e48e85af03d2cc15cc3efb5ee
+========================================================================
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {handler as sync} from '../netlify/functions/sync.mjs';
+import {handler as history} from '../netlify/functions/history.mjs';
+import {parseCollect,validate} from '../netlify/functions/_core.mjs';
+const app=readFileSync(new URL('../app.js',import.meta.url),'utf8');
+test('Üçüncü taraf etiketi resmî veya kullanıcı verisi değildir',()=>assert.match(app,/Üçüncü taraf · doğrulanmamış/));
+test('Bilinmeyen oyun API katmanında reddedilir',async()=>assert.equal((await sync({queryStringParameters:{game:'unsupported'}})).statusCode,400));
+test('Arşiv bilinmeyen oyunu reddeder',async()=>assert.equal((await history({queryStringParameters:{game:'unsupported'}})).statusCode,400));
+test('Geçersiz takvim tarihi reddedilir',()=>assert.throws(()=>parseCollect('super',{tarih:'31.02.2026',rakamlar:'1 - 2 - 3 - 4 - 5 - 6'})));
+test('On Numara eksik numaralar reddedilir',()=>assert.throws(()=>validate('onnumara',{date:'2026-10-21',numbers:[1,2,3,4,5,6]})));
+

@@ -1,0 +1,71 @@
+TAP version 13
+# Subtest: Sayısal Loto örneği resmî doğrulanmış sayılmaz
+ok 1 - Sayısal Loto örneği resmî doğrulanmış sayılmaz
+  ---
+  duration_ms: 1.670376
+  type: 'test'
+  ...
+# Subtest: aynı sayı reddedilir
+ok 2 - aynı sayı reddedilir
+  ---
+  duration_ms: 0.436317
+  type: 'test'
+  ...
+# Subtest: Şans Topu ekstra sayısı zorunlu
+ok 3 - Şans Topu ekstra sayısı zorunlu
+  ---
+  duration_ms: 1.116311
+  type: 'test'
+  ...
+# Subtest: On Numara 22 farklı sayı
+ok 4 - On Numara 22 farklı sayı
+  ---
+  duration_ms: 0.156045
+  type: 'test'
+  ...
+# Subtest: Şans Topu ve On Numara: uydurma API bağlantısı kurulmaz
+ok 5 - Şans Topu ve On Numara: uydurma API bağlantısı kurulmaz
+  ---
+  duration_ms: 0.248805
+  type: 'test'
+  ...
+# Subtest: Üçüncü taraf etiketi resmî veya kullanıcı verisi değildir
+ok 6 - Üçüncü taraf etiketi resmî veya kullanıcı verisi değildir
+  ---
+  duration_ms: 0.859965
+  type: 'test'
+  ...
+# Subtest: Bilinmeyen oyun API katmanında reddedilir
+ok 7 - Bilinmeyen oyun API katmanında reddedilir
+  ---
+  duration_ms: 1.339678
+  type: 'test'
+  ...
+# Subtest: Arşiv bilinmeyen oyunu reddeder
+ok 8 - Arşiv bilinmeyen oyunu reddeder
+  ---
+  duration_ms: 0.184788
+  type: 'test'
+  ...
+# Subtest: Geçersiz takvim tarihi reddedilir
+ok 9 - Geçersiz takvim tarihi reddedilir
+  ---
+  duration_ms: 0.694265
+  type: 'test'
+  ...
+# Subtest: On Numara eksik numaralar reddedilir
+ok 10 - On Numara eksik numaralar reddedilir
+  ---
+  duration_ms: 0.250788
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 64.971792
+

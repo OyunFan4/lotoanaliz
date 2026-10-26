@@ -1,6 +1,6 @@
 'use strict';
-const CACHE='lotoanaliz-mobil-collectapi-v11';
-const FILES=['./','./index.html','./app.js','./style.css','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
+const CACHE='lotoanaliz-auto-db-v16';
+const FILES=['./','./index.html','./app.js','./performance-engine.js','./style.css','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil((async()=>{await Promise.all((await caches.keys()).filter(k=>k.startsWith('lotoanaliz-')&&k!==CACHE).map(k=>caches.delete(k)));await self.clients.claim()})()));
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==self.location.origin||u.pathname.startsWith('/api/')||u.pathname.startsWith('/.netlify/functions/'))return;
